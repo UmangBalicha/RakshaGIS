@@ -8,7 +8,7 @@ console. Every incident shows nearby safe zones with live OSRM road routing
 and turn-by-turn evacuation directions. Light theme throughout, mobile-first
 public site, desktop-first admin console.
 
-**Stack:** React 19 + Vite + TypeScript · Tailwind CSS v4 · Leaflet + OpenStreetMap ·
+**Stack:** React 19 + Vite + JavaScript · Tailwind CSS v4 · Leaflet + OpenStreetMap ·
 Supabase (Postgres, Auth, Storage, Realtime) · Zustand · Recharts · Vercel-ready.
 
 ## Zero-setup demo mode
@@ -68,19 +68,19 @@ No server needed — the frontend talks to Supabase directly.
 
 ```
 src/
-  app/router.tsx            # all routes (public + /admin)
+  app/router.js             # all routes (public + /admin)
   components/
-    ui.tsx                  # shadcn-style primitives (light theme)
+    ui.js                   # shadcn-style primitives (light theme)
     layout/                 # PublicLayout, AdminLayout, RequireAuth/Admin
     map/                    # IncidentMap (live markers, danger zones, routes), LocationPicker
     evacuation/             # EvacuationPanel (nearest zones + turn-by-turn)
     reports/                # filters bar, detail + triage + evacuation modal
   lib/
-    routing.ts              # OSRM evacuation routing (free, no key, offline fallback)
-    api.ts                  # unified data layer (Supabase ↔ demo mock)
-    auth.ts                 # email/password + phone OTP (both backends)
-    mock.ts                 # demo-mode backend (localStorage + seed)
-    supabase.ts             # client (null when unconfigured)
+    routing.js              # OSRM evacuation routing (free, no key, offline fallback)
+    api.js                  # unified data layer (Supabase ↔ demo mock)
+    auth.js                 # email/password + phone OTP (both backends)
+    mock.js                 # demo-mode backend (localStorage + seed)
+    supabase.js             # client (null when unconfigured)
   stores/                   # zustand: auth, reports
   pages/                    # Home, ReportDisaster, TrackReport, auth, admin/*
 supabase/
