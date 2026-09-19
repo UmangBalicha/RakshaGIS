@@ -8,7 +8,10 @@ import Login from '../pages/auth/Login';
 import Register from '../pages/auth/Register';
 import PhoneLogin from '../pages/auth/PhoneLogin';
 import ReportDisaster from '../pages/ReportDisaster';
+import ReportSuccess from '../pages/ReportSuccess';
 import TrackReport from '../pages/TrackReport';
+import Privacy from '../pages/Privacy';
+import Terms from '../pages/Terms';
 import NotFound from '../pages/NotFound';
 import AdminDashboard from '../pages/admin/Dashboard';
 import AdminReports from '../pages/admin/Reports';
@@ -25,9 +28,12 @@ export const router = createBrowserRouter([
             { path: '/login/phone', element: _jsx(PhoneLogin, {}) },
             { path: '/register', element: _jsx(Register, {}) },
             { path: '/report', element: _jsx(ReportDisaster, {}) },
+            { path: '/report/success/:id', element: _jsx(ReportSuccess, {}) },
             { path: '/evacuate/:id', element: _jsx(Evacuate, {}) },
             { path: '/track', element: _jsx(TrackReport, {}) },
             { path: '/track/:id', element: _jsx(TrackReport, {}) },
+            { path: '/privacy', element: _jsx(Privacy, {}) },
+            { path: '/terms', element: _jsx(Terms, {}) },
         ],
     },
     {
