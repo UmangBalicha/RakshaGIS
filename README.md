@@ -43,13 +43,38 @@ Building Fire · Industrial Accident · Chemical Leak · Volcanic Activity · Ot
   and an "Open live navigation" deep link. Works offline with straight-line
   fallback when the routing server is unreachable.
 
+## Red zones & relocation intelligence
+
+The decision-support layer for proactive SDMA planning (see
+`src/lib/intelligence.js` — deterministic, explainable scoring, no black box):
+
+- **Red zones** (`/admin/red-zones`): persistent multi-hazard areas unfit for
+  permanent habitation, drawn as dashed red circles on every map. Admins declare
+  them manually or via **Auto-detect**, which clusters live incident reports
+  (2+ within 5 km) into candidates. Each zone carries an evidence score
+  (history 40 + severity 30 + recency 20 + exposure 10) mapped to
+  Low / Moderate / High / Extreme, plus an exposed-population count.
+- **Relocation planner** (`/admin/relocation`): habitations (villages, towns,
+  wards with population, vulnerable groups and kutcha-housing share) are scored
+  on exposure × vulnerability × history and phased into **Immediate (≥70) /
+  Short-term (≥45) / Medium-term (≥25) / Monitoring**, each with audit reasons.
+- **Carrying capacity**: safe zones flagged as relocation sites are graded
+  A–D on amenities, infrastructure access, spare capacity and red-zone
+  separation; the planner tracks `capacity − sheltered − allocated` per site
+  and flags over-capacity in red. Allocations are edited inline.
+- Covered by `src/lib/intelligence.test.js` (13 tests) and demo seed data
+  (6 red zones, 10 habitations, 4 relocation sites).
+
 ## Going live with Supabase
 
 1. Create a project at https://supabase.com, then run `supabase/schema.sql`
    once in the SQL editor (creates tables, RLS, triggers, storage policies).
+   Then run `supabase/relocation_schema.sql` for the red-zone, habitation and
+   site-assessment tables.
 2. Storage: the schema creates a public `report-images` bucket automatically.
 3. Auth: enable **Email** and **Phone (SMS)** providers as needed.
-4. Realtime: Database → Replication → enable `disaster_reports` and `safe_zones`.
+4. Realtime: Database → Replication → enable `disaster_reports`, `safe_zones`,
+   `red_zones` and `habitations`.
 5. Copy `.env.example` to `.env` and fill in:
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
 6. (Optional) Deploy `supabase/functions/send-notification` for SMS/webhook

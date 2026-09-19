@@ -15,6 +15,8 @@ import Terms from '../pages/Terms';
 import NotFound from '../pages/NotFound';
 import AdminDashboard from '../pages/admin/Dashboard';
 import AdminReports from '../pages/admin/Reports';
+import AdminRedZones from '../pages/admin/RedZones';
+import AdminRelocation from '../pages/admin/Relocation';
 import AdminAnalytics from '../pages/admin/Analytics';
 import AdminUsers from '../pages/admin/Users';
 import AdminSettings from '../pages/admin/Settings';
@@ -45,8 +47,10 @@ export const router = createBrowserRouter([
                     {
                         element: _jsx(AdminLayout, {}),
                         children: [
-                            { path: '/admin', element: _jsx(AdminDashboard, {}) },
-                            { path: '/admin/reports', element: _jsx(AdminReports, {}) },
+              { path: '/admin', element: _jsx(AdminDashboard, {}) },
+              { path: '/admin/reports', element: _jsx(AdminReports, {}) },
+              { path: '/admin/red-zones', element: _jsx(AdminRedZones, {}) },
+              { path: '/admin/relocation', element: _jsx(AdminRelocation, {}) },
                             { path: '/admin/safe-zones', element: _jsx(AdminSafeZones, {}) },
                             { path: '/admin/analytics', element: _jsx(AdminAnalytics, {}) },
                             { path: '/admin/users', element: _jsx(AdminUsers, {}) },

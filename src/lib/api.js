@@ -1,6 +1,6 @@
 /* Unified data layer: real Supabase when configured, demo-mode mock otherwise. */
 import { isSupabaseEnabled, supabase } from './supabase';
-import { mockCreateReport, mockCreateZone, mockDeleteZone, mockGetReport, mockListAlerts, mockListNotifications, mockListProfiles, mockListReports, mockListZones, mockMarkNotificationRead, mockSetRole, mockSubscribe, mockUpdateReport, mockUpdateZone, } from './mock';
+import { mockCreateHabitation, mockCreateRedZone, mockCreateReport, mockCreateZone, mockDeleteHabitation, mockDeleteRedZone, mockDeleteZone, mockGetReport, mockListAlerts, mockListHabitations, mockListNotifications, mockListProfiles, mockListRedZones, mockListReports, mockListZones, mockMarkNotificationRead, mockSetRole, mockSubscribe, mockUpdateHabitation, mockUpdateRedZone, mockUpdateReport, mockUpdateZone, } from './mock';
 export const isDemoMode = !isSupabaseEnabled;
 function mustDb() {
     if (!supabase)
@@ -140,6 +140,107 @@ export async function deleteSafeZone(id) {
     if (error)
         throw error;
 }
+/* ---------------- Red zones ---------------- */
+function toRedZone(row) {
+    return {
+        ...row,
+        hazard_types: row.hazard_types ?? [],
+        radius_meters: Number(row.radius_meters ?? 0),
+        incident_count: Number(row.incident_count ?? 0),
+        population_exposed: Number(row.population_exposed ?? 0),
+    };
+}
+export async function listRedZones() {
+    if (isDemoMode)
+        return mockListRedZones();
+    const { data, error } = await mustDb()
+        .from('red_zones')
+        .select('*')
+        .order('updated_at', { ascending: false });
+    if (error)
+        throw error;
+    return (data ?? []).map(toRedZone);
+}
+export async function createRedZone(input) {
+    if (isDemoMode)
+        return mockCreateRedZone(input);
+    const { data, error } = await mustDb().from('red_zones').insert(input).select('*').single();
+    if (error)
+        throw error;
+    return toRedZone(data);
+}
+export async function updateRedZone(id, patch) {
+    if (isDemoMode)
+        return mockUpdateRedZone(id, patch);
+    const { data, error } = await mustDb()
+        .from('red_zones')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+    if (error)
+        throw error;
+    return toRedZone(data);
+}
+export async function deleteRedZone(id) {
+    if (isDemoMode)
+        return mockDeleteRedZone(id);
+    const { error } = await mustDb().from('red_zones').delete().eq('id', id);
+    if (error)
+        throw error;
+}
+/* ---------------- Habitations ---------------- */
+function toHabitation(row) {
+    return {
+        ...row,
+        latitude: Number(row.latitude),
+        longitude: Number(row.longitude),
+        population: Number(row.population ?? 0),
+        households: Number(row.households ?? 0),
+        vulnerable_count: Number(row.vulnerable_count ?? 0),
+        kutcha_share: Number(row.kutcha_share ?? 0),
+        past_incidents: Number(row.past_incidents ?? 0),
+    };
+}
+export async function listHabitations() {
+    if (isDemoMode)
+        return mockListHabitations();
+    const { data, error } = await mustDb()
+        .from('habitations')
+        .select('*')
+        .order('name', { ascending: true });
+    if (error)
+        throw error;
+    return (data ?? []).map(toHabitation);
+}
+export async function createHabitation(input) {
+    if (isDemoMode)
+        return mockCreateHabitation(input);
+    const { data, error } = await mustDb().from('habitations').insert(input).select('*').single();
+    if (error)
+        throw error;
+    return toHabitation(data);
+}
+export async function updateHabitation(id, patch) {
+    if (isDemoMode)
+        return mockUpdateHabitation(id, patch);
+    const { data, error } = await mustDb()
+        .from('habitations')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+    if (error)
+        throw error;
+    return toHabitation(data);
+}
+export async function deleteHabitation(id) {
+    if (isDemoMode)
+        return mockDeleteHabitation(id);
+    const { error } = await mustDb().from('habitations').delete().eq('id', id);
+    if (error)
+        throw error;
+}
 /* ---------------- Image uploads ---------------- */
 export async function uploadReportImages(files) {
     if (files.length === 0)
@@ -246,6 +347,28 @@ export function subscribeToZones(cb) {
     const channel = supabase
         .channel('safe-zones-live')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'safe_zones' }, () => cb())
+        .subscribe();
+    return () => {
+        void supabase?.removeChannel(channel);
+    };
+}
+export function subscribeToRedZones(cb) {
+    if (isDemoMode || !supabase)
+        return mockSubscribe(cb);
+    const channel = supabase
+        .channel('red-zones-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'red_zones' }, () => cb())
+        .subscribe();
+    return () => {
+        void supabase?.removeChannel(channel);
+    };
+}
+export function subscribeToHabitations(cb) {
+    if (isDemoMode || !supabase)
+        return mockSubscribe(cb);
+    const channel = supabase
+        .channel('habitations-live')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'habitations' }, () => cb())
         .subscribe();
     return () => {
         void supabase?.removeChannel(channel);

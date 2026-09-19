@@ -3,9 +3,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
 import { Circle, MapContainer, Marker, Polyline, Popup, TileLayer, useMap } from 'react-leaflet';
-import { DISASTER_TYPE_META, SEVERITY_META, STATUS_META, cn, dangerRadiusMeters, googleNavUrl, timeAgo, } from '../../lib/utils';
+import {
+    DISASTER_TYPE_META,
+    RED_ZONE_INTENSITY_META,
+    SEVERITY_META,
+    STATUS_META,
+    cn,
+    dangerRadiusMeters,
+    googleNavUrl,
+    timeAgo,
+} from '../../lib/utils';
 import { getMapTiles, loadMapmyIndiaSDK, mapmyIndiaKey } from '../../lib/maptiles';
 import { useWideScreen } from '../../lib/hooks';
+import { useReportStore } from '../../stores/reportStore';
 const SEVERITY_COLOR = {
     low: '#10b981',
     medium: '#f59e0b',
@@ -129,8 +139,12 @@ function InvalidateOnResize() {
     }, [map]);
     return null;
 }
-export default function IncidentMap({ reports, zones = [], showDangerZones = false, selectedRoute = null, height = '420px', className, fitKey, focus, centerOnUser = false, onViewDetails, onEvacuate, }) {
+export default function IncidentMap({ reports, zones = [], redZones, showDangerZones = false, selectedRoute = null, height = '420px', className, fitKey, focus, centerOnUser = false, onViewDetails, onEvacuate, }) {
     const markers = useMemo(() => new Map(), []);
+    // Red zones default to the live store so every map (dashboard, modals)
+    // shows them without extra wiring; pages may override via prop.
+    const storeRedZones = useReportStore((s) => s.redZones);
+    const activeRedZones = redZones ?? storeRedZones;
     // Official India tiles when a MapmyIndia key is configured, else OSM.
     const key = mapmyIndiaKey();
     const [tiles, setTiles] = useState(getMapTiles);
@@ -167,7 +181,15 @@ export default function IncidentMap({ reports, zones = [], showDangerZones = fal
                             fillColor: SEVERITY_COLOR[r.severity],
                             fillOpacity: 0.12,
                         } }, `danger-${r.id}`)))
-                    : null, zones
+                    : null, activeRedZones
+                    .filter((z) => z.status === 'active')
+                    .map((z) => (_jsx(Circle, { center: [z.latitude, z.longitude], radius: z.radius_meters, pathOptions: {
+                            color: '#b91c1c',
+                            weight: 2,
+                            dashArray: '6 4',
+                            fillColor: '#b91c1c',
+                            fillOpacity: 0.08,
+                        }, children: _jsx(Popup, { className: "rg-popup", maxWidth: 280, minWidth: 220, children: _jsxs("div", { className: "min-w-48", children: [_jsx("p", { className: "text-xs font-bold tracking-wide text-red-700 uppercase", children: "Red zone — no habitation" }), _jsx("p", { className: "text-sm font-bold text-slate-900", children: z.name }), _jsx("p", { className: "mt-0.5 text-sm text-slate-500", children: (z.hazard_types || []).join(', ').replace(/_/g, ' ') }), _jsxs("div", { className: "mt-2 flex flex-wrap gap-1.5", children: [_jsx("span", { className: cn('inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ring-1 ring-inset', RED_ZONE_INTENSITY_META[z.intensity].badge), children: `${RED_ZONE_INTENSITY_META[z.intensity].label} intensity` }), _jsx("span", { className: "inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-inset ring-slate-200", children: `${z.incident_count} incidents` })] }), _jsx("p", { className: "mt-1.5 text-xs text-slate-500", children: `${(z.population_exposed ?? 0).toLocaleString('en-IN')} people in exposure area` })] }) }) }, `redzone-${z.id}`))), zones
                     .filter((z) => z.is_active)
                     .map((z) => (_jsx(Marker, { position: [z.latitude, z.longitude], icon: zoneIcon(), children: _jsx(Popup, { className: "rg-popup", maxWidth: 280, minWidth: 220, children: _jsxs("div", { className: "min-w-48", children: [_jsx("p", { className: "text-xs font-bold tracking-wide text-emerald-700 uppercase", children: "Safe zone" }), _jsx("p", { className: "text-sm font-bold text-slate-900", children: z.name }), _jsx("p", { className: "mt-0.5 text-sm text-slate-500", children: z.address }), _jsx("p", { className: "mt-1 text-xs text-slate-500", children: z.capacity
                                         ? `Occupancy ${z.current_occupancy}/${z.capacity}`

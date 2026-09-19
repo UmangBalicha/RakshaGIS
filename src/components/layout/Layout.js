@@ -82,6 +82,8 @@ export function PublicLayout() {
 const ADMIN_LINKS = [
     { to: '/admin', label: 'Overview', end: true },
     { to: '/admin/reports', label: 'Reports' },
+    { to: '/admin/red-zones', label: 'Red Zones' },
+    { to: '/admin/relocation', label: 'Relocation' },
     { to: '/admin/safe-zones', label: 'Safe Zones' },
     { to: '/admin/analytics', label: 'Analytics' },
     { to: '/admin/users', label: 'Users' },

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { listAlerts, listReports, listSafeZones } from '../lib/api';
-import { subscribeToReports, subscribeToZones } from '../lib/api';
+import { listAlerts, listHabitations, listRedZones, listReports, listSafeZones } from '../lib/api';
+import { subscribeToHabitations, subscribeToRedZones, subscribeToReports, subscribeToZones } from '../lib/api';
 export const DEFAULT_FILTERS = {
     query: '',
     severity: 'all',
@@ -11,6 +11,8 @@ export const useReportStore = create()((set, get) => ({
     reports: [],
     alerts: [],
     zones: [],
+    redZones: [],
+    habitations: [],
     loading: false,
     error: null,
     filters: DEFAULT_FILTERS,
@@ -19,12 +21,14 @@ export const useReportStore = create()((set, get) => ({
     refresh: async () => {
         set({ loading: true, error: null });
         try {
-            const [reports, alerts, zones] = await Promise.all([
+            const [reports, alerts, zones, redZones, habitations] = await Promise.all([
                 listReports(),
                 listAlerts(60),
                 listSafeZones(),
+                listRedZones(),
+                listHabitations(),
             ]);
-            set({ reports, alerts, zones, loading: false });
+            set({ reports, alerts, zones, redZones, habitations, loading: false });
         }
         catch (e) {
             set({
@@ -37,9 +41,13 @@ export const useReportStore = create()((set, get) => ({
         const refresh = () => void get().refresh();
         const offReports = subscribeToReports(refresh);
         const offZones = subscribeToZones(refresh);
+        const offRed = subscribeToRedZones(refresh);
+        const offHab = subscribeToHabitations(refresh);
         return () => {
             offReports();
             offZones();
+            offRed();
+            offHab();
         };
     },
 }));

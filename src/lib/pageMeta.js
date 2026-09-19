@@ -54,6 +54,14 @@ const EXACT = {
     title: 'Manage Reports — RakshaGIS',
     description: 'Authority view of all disaster reports with triage controls and CSV export.',
   },
+  '/admin/red-zones': {
+    title: 'Red Zones — RakshaGIS',
+    description: 'Declare and update multi-hazard red zones from live incident evidence.',
+  },
+  '/admin/relocation': {
+    title: 'Relocation Planner — RakshaGIS',
+    description: 'Phased relocation queue for vulnerable habitations with site carrying-capacity checks.',
+  },
   '/admin/safe-zones': {
     title: 'Manage Safe Zones — RakshaGIS',
     description: 'Authority management of evacuation shelters, hospitals and relief camps.',

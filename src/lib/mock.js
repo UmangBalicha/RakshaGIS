@@ -64,7 +64,7 @@ function seed() {
         R('seed-16', citizen, 12.2786, 93.8574, 'Barren Island, Andaman & Nicobar', 'volcanic', 'medium', 'investigating', 'Ash plume observed by coast guard patrol. Exclusion advisory issued for nearby waters.', 60),
         R('seed-17', citizen, 23.0225, 72.5714, 'Naroda GIDC, Ahmedabad, Gujarat', 'industrial', 'critical', 'investigating', 'Blast in a chemical storage godown with fire spreading to adjacent units. Multiple injuries reported.', 11, { has_injuries: true, injury_count: 4 }),
     ];
-    const Z = (id, name, type, latitude, longitude, address, capacity, occupancy, amenities, ageHrs) => ({
+    const Z = (id, name, type, latitude, longitude, address, capacity, occupancy, amenities, ageHrs, extra = {}) => ({
         id,
         name,
         type,
@@ -75,6 +75,14 @@ function seed() {
         current_occupancy: occupancy,
         amenities,
         is_active: true,
+        // Relocation-site assessment (PS: carrying capacity of safer sites).
+        is_relocation_site: false,
+        water_access: false,
+        road_access: false,
+        health_access: false,
+        school_access: false,
+        allocated_population: 0,
+        ...extra,
         created_at: hoursAgo(ageHrs),
         updated_at: hoursAgo(Math.max(0, ageHrs - 5)),
     });
@@ -84,14 +92,14 @@ function seed() {
         Z('zone-03', 'Rangers Ground Open Shelter', 'open_ground', 30.3322, 78.0551, 'Clement Town, Dehradun', 2000, 0, ['water', 'comms'], 180),
         Z('zone-04', 'Tapovan Community Hall Camp', 'relief_camp', 30.0912, 78.2744, 'Tapovan, Rishikesh', 500, 310, ['water', 'food', 'bedding'], 150),
         Z('zone-05', 'AIIMS Rishikesh Triage Point', 'hospital', 30.0777, 78.2872, 'Virbhadra Road, Rishikesh', 400, 60, ['medical', 'water', 'power', 'comms'], 150),
-        Z('zone-06', 'Nainital Stadium Shelter', 'shelter', 29.3851, 79.4589, 'Flats Ground, Mallital, Nainital', 1200, 200, ['water', 'food', 'medical', 'bedding', 'power'], 120),
+        Z('zone-06', 'Nainital Stadium Shelter', 'shelter', 29.3851, 79.4589, 'Flats Ground, Mallital, Nainital', 1200, 200, ['water', 'food', 'medical', 'bedding', 'power'], 120, { is_relocation_site: true, water_access: true, road_access: true, health_access: true, school_access: true, allocated_population: 150 }),
         Z('zone-07', 'BD Pandey Hospital Point', 'hospital', 29.3889, 79.4488, 'Mall Road, Nainital', 250, 30, ['medical', 'water'], 120),
         Z('zone-08', 'Uttarkashi Bus Stand Ground', 'open_ground', 30.7312, 78.4512, 'NH-108, Uttarkashi', 900, 0, ['water', 'comms'], 100),
-        Z('zone-09', 'Tehri Lake View Camp', 'relief_camp', 30.3812, 78.4822, 'New Tehri Town', 700, 90, ['water', 'food', 'bedding', 'power'], 90),
+        Z('zone-09', 'Tehri Lake View Camp', 'relief_camp', 30.3812, 78.4822, 'New Tehri Town', 700, 90, ['water', 'food', 'bedding', 'power'], 90, { is_relocation_site: true, water_access: true, road_access: true, health_access: false, school_access: false, allocated_population: 0 }),
         Z('zone-10', 'Chamoli Polytechnic Shelter', 'school', 30.4189, 79.3351, 'Gopeshwar, Chamoli', 600, 40, ['water', 'food', 'bedding'], 80),
         Z('zone-11', 'Haridwar Ramlila Ground', 'open_ground', 29.9512, 78.1592, 'Near Har Ki Pauri, Haridwar', 2500, 150, ['water', 'food', 'comms'], 70),
         Z('zone-12', 'Almora Army Ground Shelter', 'open_ground', 29.6012, 79.6644, 'Cantonment, Almora', 1500, 0, ['water', 'medical', 'comms'], 60),
-        Z('zone-13', 'Guwahati Nehru Stadium Camp', 'relief_camp', 26.1522, 91.7633, 'Nehru Stadium, Guwahati', 3000, 1450, ['water', 'food', 'medical', 'bedding', 'power'], 40),
+        Z('zone-13', 'Guwahati Nehru Stadium Camp', 'relief_camp', 26.1522, 91.7633, 'Nehru Stadium, Guwahati', 3000, 1450, ['water', 'food', 'medical', 'bedding', 'power'], 40, { is_relocation_site: true, water_access: true, road_access: true, health_access: true, school_access: true, allocated_population: 900 }),
         Z('zone-14', 'Puri Town Hall Shelter', 'shelter', 19.8044, 85.8255, 'Grand Road, Puri', 1000, 320, ['water', 'food', 'bedding', 'power'], 30),
         // Delhi NCR — serves Karol Bagh (seed-07) + Wazirpur (seed-15)
         Z('zone-15', 'Ajmal Khan Park Shelter', 'shelter', 28.6219, 77.2015, 'Ajmal Khan Park, Karol Bagh, New Delhi', 900, 140, ['water', 'food', 'bedding'], 28),
@@ -103,7 +111,7 @@ function seed() {
         Z('zone-20', 'Gilbert Hill Open Ground', 'open_ground', 19.0689, 72.8644, 'Sagar City, Andheri West, Mumbai', 1800, 0, ['water', 'comms'], 20),
         // Chennai — serves Besant Nagar (seed-14)
         Z('zone-21', 'Olcott School Shelter', 'school', 13.0889, 80.2744, 'Besant Avenue, Adyar, Chennai', 700, 60, ['water', 'food', 'bedding'], 18),
-        Z('zone-22', 'Island Grounds Relief Camp', 'relief_camp', 13.0677, 80.2745, 'Island Grounds, Marina Beach Road, Chennai', 2500, 300, ['water', 'food', 'medical', 'bedding', 'power', 'comms'], 18),
+        Z('zone-22', 'Island Grounds Relief Camp', 'relief_camp', 13.0677, 80.2745, 'Island Grounds, Marina Beach Road, Chennai', 2500, 300, ['water', 'food', 'medical', 'bedding', 'power', 'comms'], 18, { is_relocation_site: true, water_access: true, road_access: true, health_access: true, school_access: false, allocated_population: 200 }),
         // Ahmedabad — serves Naroda GIDC (seed-17)
         Z('zone-23', 'Naroda Fire Station Ground', 'open_ground', 23.0301, 72.5633, 'Naroda GIDC Phase 2, Ahmedabad', 1000, 0, ['water', 'comms'], 16),
         Z('zone-24', 'Civil Hospital Asarwa Point', 'hospital', 23.0522, 72.6033, 'Civil Hospital Campus, Asarwa, Ahmedabad', 500, 150, ['medical', 'water', 'power'], 16),
@@ -117,6 +125,61 @@ function seed() {
         Z('zone-29', 'District Hospital Haridwar Point', 'hospital', 29.9399, 78.1522, 'Upper Road, Haridwar, Uttarakhand', 300, 55, ['medical', 'water', 'power'], 8),
         // Andaman staging post for Barren Island waters (seed-16)
         Z('zone-30', 'Port Blair Staging Camp', 'relief_camp', 11.6644, 92.7412, 'Corbyns Cove Road, Port Blair, Andaman & Nicobar', 800, 20, ['water', 'food', 'medical', 'bedding', 'power', 'comms'], 6),
+    ];
+    // ---- Red zones: persistent multi-hazard areas unsuitable for habitation.
+    const RZ = (id, name, hazard_types, latitude, longitude, radius_meters, intensity, status, incident_count, lastHrs, population_exposed, notes) => ({
+        id,
+        name,
+        hazard_types,
+        latitude,
+        longitude,
+        radius_meters,
+        intensity,
+        status,
+        incident_count,
+        last_incident_at: lastHrs === null ? null : hoursAgo(lastHrs),
+        population_exposed,
+        notes,
+        created_at: hoursAgo(24 * 30),
+        updated_at: hoursAgo(Math.max(0, (lastHrs ?? 24) - 1)),
+    });
+    const redZones = [
+        RZ('rz-01', 'Rajpur–Mussoorie Wildfire Belt', ['wildfire'], 30.35, 78.06, 4000, 'high', 'active', 3, 3, 4200, 'Repeat pine-forest fire corridor; active flame front near Rajpur.'),
+        RZ('rz-02', 'Mallital–Almora Landslide Cradle', ['landslide'], 29.45, 79.55, 6000, 'extreme', 'active', 4, 5, 6800, 'Overnight-rain slope failures; road-blocking debris above habitations.'),
+        RZ('rz-03', 'Uttarkashi NH-108 Slope Zone', ['landslide'], 30.73, 78.45, 3000, 'high', 'active', 2, 14, 1500, 'Highway-adjacent slope failure; traffic halted during events.'),
+        RZ('rz-04', 'Bharalumukh Floodplain', ['flood'], 26.15, 91.74, 3500, 'high', 'active', 2, 6, 12000, 'Brahmaputra overflow lanes; knee-level waterlogging every monsoon.'),
+        RZ('rz-05', 'Naroda Industrial Hazard Pocket', ['industrial', 'chemical'], 23.02, 72.57, 2500, 'extreme', 'active', 2, 11, 9000, 'Chemical godown blast radius; fire spread to adjacent units.'),
+        RZ('rz-06', 'Puri Marine Cyclone Front', ['cyclone'], 19.8135, 85.8314, 5000, 'moderate', 'monitoring', 1, 20, 25000, 'Storm-surge watch strip; monitoring only after false-alarm surge.'),
+    ];
+    // ---- Habitations: settlements tracked for phased relocation.
+    const H = (id, name, habitation_type, latitude, longitude, address, population, households, vulnerable_count, kutcha_share, red_zone_id, past_incidents) => ({
+        id,
+        name,
+        habitation_type,
+        latitude,
+        longitude,
+        address,
+        population,
+        households,
+        vulnerable_count,
+        kutcha_share,
+        red_zone_id,
+        past_incidents,
+        notes: '',
+        created_at: hoursAgo(24 * 60),
+        updated_at: hoursAgo(24),
+    });
+    const habitations = [
+        H('h-01', 'Rajpur Village', 'village', 30.32, 78.04, 'Rajpur Road, Dehradun', 1800, 420, 520, 55, 'rz-01', 3),
+        H('h-02', 'Mussoorie Rural Fringe', 'village', 30.36, 78.07, 'George Everest foothills, Mussoorie', 2400, 560, 700, 48, 'rz-01', 2),
+        H('h-03', 'Mallital Ward 4', 'ward', 29.39, 79.45, 'Mallital, Nainital', 3200, 780, 900, 35, 'rz-02', 4),
+        H('h-04', 'Almora Lower Bazar', 'town', 29.6, 79.66, 'Lower Bazar, Almora', 5100, 1200, 1100, 30, 'rz-02', 2),
+        H('h-05', 'Uttarkashi Riverside Colony', 'town', 30.73, 78.44, 'Near NH-108, Uttarkashi', 2600, 610, 640, 42, 'rz-03', 3),
+        H('h-06', 'Bharalumukh Lane Cluster', 'ward', 26.145, 91.736, 'Bharalumukh, Guwahati', 4500, 980, 1500, 65, 'rz-04', 5),
+        H('h-07', 'Naroda Labour Quarters', 'ward', 23.023, 72.571, 'Naroda GIDC Phase 2, Ahmedabad', 6800, 1500, 2100, 58, 'rz-05', 2),
+        H('h-08', 'Puri Marine Fishing Hamlet', 'village', 19.813, 85.831, 'Marine Drive, Puri', 1500, 330, 480, 72, 'rz-06', 1),
+        H('h-09', 'Dhanaulti Road Hamlet', 'village', 30.375, 78.474, 'Dhanaulti Road, Tehri Garhwal', 700, 160, 210, 60, null, 1),
+        H('h-10', 'Clement Town Extension', 'town', 30.33, 78.055, 'Clement Town, Dehradun', 8000, 1900, 1200, 12, null, 0),
     ];
     const alerts = reports
         .filter((r) => r.severity === 'critical' || r.severity === 'high' || r.status === 'pending')
@@ -159,17 +222,17 @@ function seed() {
             created_at: hoursAgo(6),
         },
     ];
-    return { version: 3, profiles, reports, alerts, notifications, zones };
+    return { version: 4, profiles, reports, alerts, notifications, zones, redZones, habitations };
 }
 function load() {
     try {
         const raw = localStorage.getItem(DB_KEY);
         if (raw) {
             const parsed = JSON.parse(raw);
-            if (parsed.version === 3 && Array.isArray(parsed.reports))
+            if (parsed.version === 4 && Array.isArray(parsed.reports) && Array.isArray(parsed.redZones))
                 return parsed;
         }
-        // Migrate: drop older mock databases (zones dataset changed).
+        // Migrate: drop older mock databases (red-zone dataset added in v4).
         localStorage.removeItem('rakshagis_mock_v1');
         localStorage.removeItem('rakshagis_mock_v2');
     }
@@ -399,6 +462,79 @@ export function mockUpdateZone(id, patch) {
 export function mockDeleteZone(id) {
     const store = db();
     store.zones = store.zones.filter((z) => z.id !== id);
+    save();
+    return asyncWrap(undefined);
+}
+/* ---------------- Red zones ---------------- */
+export function mockListRedZones() {
+    const rows = [...db().redZones].sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    return asyncWrap(rows);
+}
+export function mockCreateRedZone(input) {
+    const store = db();
+    const now = new Date().toISOString();
+    const zone = {
+        id: uid('rz'),
+        status: 'active',
+        incident_count: 0,
+        last_incident_at: null,
+        population_exposed: 0,
+        notes: '',
+        ...input,
+        created_at: now,
+        updated_at: now,
+    };
+    store.redZones.push(zone);
+    save();
+    return asyncWrap(zone);
+}
+export function mockUpdateRedZone(id, patch) {
+    const store = db();
+    const zone = store.redZones.find((z) => z.id === id);
+    if (!zone)
+        throw new Error('Red zone not found.');
+    Object.assign(zone, patch, { updated_at: new Date().toISOString() });
+    save();
+    return asyncWrap(zone);
+}
+export function mockDeleteRedZone(id) {
+    const store = db();
+    store.redZones = store.redZones.filter((z) => z.id !== id);
+    save();
+    return asyncWrap(undefined);
+}
+/* ---------------- Habitations ---------------- */
+export function mockListHabitations() {
+    const rows = [...db().habitations].sort((a, b) => a.name.localeCompare(b.name));
+    return asyncWrap(rows);
+}
+export function mockCreateHabitation(input) {
+    const store = db();
+    const now = new Date().toISOString();
+    const h = {
+        id: uid('h'),
+        past_incidents: 0,
+        notes: '',
+        ...input,
+        created_at: now,
+        updated_at: now,
+    };
+    store.habitations.push(h);
+    save();
+    return asyncWrap(h);
+}
+export function mockUpdateHabitation(id, patch) {
+    const store = db();
+    const h = store.habitations.find((x) => x.id === id);
+    if (!h)
+        throw new Error('Habitation not found.');
+    Object.assign(h, patch, { updated_at: new Date().toISOString() });
+    save();
+    return asyncWrap(h);
+}
+export function mockDeleteHabitation(id) {
+    const store = db();
+    store.habitations = store.habitations.filter((x) => x.id !== id);
     save();
     return asyncWrap(undefined);
 }

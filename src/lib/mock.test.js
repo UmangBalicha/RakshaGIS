@@ -3,17 +3,25 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DEMO_OTP_CODE,
+  mockCreateHabitation,
+  mockCreateRedZone,
   mockCreateReport,
   mockCreateZone,
+  mockDeleteHabitation,
+  mockDeleteRedZone,
   mockDeleteZone,
   mockGetReport,
   mockListAlerts,
+  mockListHabitations,
   mockListNotifications,
   mockListProfiles,
+  mockListRedZones,
   mockListReports,
   mockListZones,
   mockMarkNotificationRead,
   mockResetDemo,
+  mockUpdateHabitation,
+  mockUpdateRedZone,
   mockUpdateReport,
   mockUpdateZone,
 } from './mock.js';
@@ -151,5 +159,85 @@ describe('notifications', () => {
 describe('auth constants', () => {
   it('demo OTP code is stable', () => {
     expect(DEMO_OTP_CODE).toBe('123456');
+  });
+});
+
+describe('red-zone backend', () => {
+  it('seeds six red zones with valid domain values', async () => {
+    const zones = await mockListRedZones();
+    expect(zones.length).toBe(6);
+    for (const z of zones) {
+      expect(['low', 'moderate', 'high', 'extreme']).toContain(z.intensity);
+      expect(['active', 'monitoring', 'denotified']).toContain(z.status);
+      expect(z.hazard_types.length).toBeGreaterThan(0);
+      expect(z.radius_meters).toBeGreaterThan(0);
+    }
+  });
+
+  it('creates, updates and deletes a red zone', async () => {
+    const created = await mockCreateRedZone({
+      name: 'Test Zone',
+      hazard_types: ['flood'],
+      latitude: 28.6,
+      longitude: 77.2,
+      radius_meters: 2000,
+      intensity: 'moderate',
+      status: 'active',
+      incident_count: 1,
+      population_exposed: 500,
+      notes: '',
+    });
+    expect(created.id).toMatch(/^rz-/);
+    const updated = await mockUpdateRedZone(created.id, { intensity: 'high' });
+    expect(updated.intensity).toBe('high');
+    await mockDeleteRedZone(created.id);
+    const zones = await mockListRedZones();
+    expect(zones.find((z) => z.id === created.id)).toBeUndefined();
+    expect(() => mockUpdateRedZone('missing', {})).toThrow('Red zone not found.');
+  });
+});
+
+describe('habitation backend', () => {
+  it('seeds ten habitations with valid domain values', async () => {
+    const rows = await mockListHabitations();
+    expect(rows.length).toBe(10);
+    for (const h of rows) {
+      expect(['village', 'town', 'ward']).toContain(h.habitation_type);
+      expect(h.population).toBeGreaterThan(0);
+    }
+  });
+
+  it('creates, updates and deletes a habitation', async () => {
+    const created = await mockCreateHabitation({
+      name: 'Test Village',
+      habitation_type: 'village',
+      latitude: 28.6,
+      longitude: 77.2,
+      address: 'Test addr',
+      population: 400,
+      households: 90,
+      vulnerable_count: 100,
+      kutcha_share: 40,
+      red_zone_id: null,
+      past_incidents: 0,
+      notes: '',
+    });
+    expect(created.id).toMatch(/^h-/);
+    const updated = await mockUpdateHabitation(created.id, { past_incidents: 2 });
+    expect(updated.past_incidents).toBe(2);
+    await mockDeleteHabitation(created.id);
+    const rows = await mockListHabitations();
+    expect(rows.find((h) => h.id === created.id)).toBeUndefined();
+  });
+});
+
+describe('relocation-site fields on safe zones', () => {
+  it('seeds designated relocation sites with access data', async () => {
+    const zones = await mockListZones();
+    const sites = zones.filter((z) => z.is_relocation_site);
+    expect(sites.length).toBeGreaterThan(0);
+    for (const s of sites) {
+      expect(typeof s.allocated_population).toBe('number');
+    }
   });
 });

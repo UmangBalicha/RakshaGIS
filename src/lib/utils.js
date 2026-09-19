@@ -65,6 +65,29 @@ export const AMENITY_LABELS = {
     power: 'Power / charging',
     comms: 'Comms / helpline',
 };
+export const RED_ZONE_INTENSITY_META = {
+    low: { label: 'Low', badge: 'bg-emerald-100 text-emerald-800 ring-emerald-200', dot: 'bg-emerald-500' },
+    moderate: { label: 'Moderate', badge: 'bg-amber-100 text-amber-800 ring-amber-200', dot: 'bg-amber-500' },
+    high: { label: 'High', badge: 'bg-orange-100 text-orange-800 ring-orange-200', dot: 'bg-orange-500' },
+    extreme: { label: 'Extreme', badge: 'bg-red-100 text-red-800 ring-red-200', dot: 'bg-red-600' },
+};
+export const RED_ZONE_STATUS_META = {
+    active: { label: 'Active — no habitation', badge: 'bg-red-100 text-red-800 ring-red-200' },
+    monitoring: { label: 'Monitoring', badge: 'bg-amber-100 text-amber-800 ring-amber-200' },
+    denotified: { label: 'Denotified', badge: 'bg-slate-200 text-slate-600 ring-slate-300' },
+};
+export const RELOCATION_PHASE_META = {
+    immediate: { label: 'Immediate', badge: 'bg-red-600 text-white ring-red-700' },
+    short_term: { label: 'Short-term', badge: 'bg-orange-100 text-orange-800 ring-orange-200' },
+    medium_term: { label: 'Medium-term', badge: 'bg-amber-100 text-amber-800 ring-amber-200' },
+    monitoring: { label: 'Monitoring', badge: 'bg-slate-200 text-slate-600 ring-slate-300' },
+};
+export const SUITABILITY_GRADE_META = {
+    A: { label: 'Grade A', badge: 'bg-emerald-100 text-emerald-800 ring-emerald-200' },
+    B: { label: 'Grade B', badge: 'bg-blue-100 text-blue-800 ring-blue-200' },
+    C: { label: 'Grade C', badge: 'bg-amber-100 text-amber-800 ring-amber-200' },
+    D: { label: 'Grade D', badge: 'bg-red-100 text-red-800 ring-red-200' },
+};
 export function formatDateTime(iso) {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime()))
