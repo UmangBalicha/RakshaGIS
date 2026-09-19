@@ -280,6 +280,9 @@ export function PublicLayout() {
               ? ' Map: © MapmyIndia.'
               : ' Map: © OpenStreetMap · boundaries are indicative.'}
           </p>
+          <p className="text-xs sm:text-xs">
+            Built by <span className="font-bold text-slate-700">Umang Balicha</span>
+          </p>
         </div>
       </footer>
 

@@ -1,5 +1,7 @@
 # RakshaGIS — All-Hazards Incident Reporting, Monitoring & Evacuation
 
+> Built by **Umang Balicha**.
+
 Public citizens file geo-tagged incident reports for any disaster — natural or
 man-made — in under a minute; authority staff triage them on a live map
 console. Every incident shows nearby safe zones with live OSRM road routing
