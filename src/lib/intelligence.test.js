@@ -42,6 +42,9 @@ describe('scoreRedZone', () => {
   it('scores empty evidence as low 0', () => {
     expect(scoreRedZone()).toEqual({ score: 0, band: 'low' });
   });
+  it('clamps hostile inputs to the 0–100 contract', () => {
+    expect(scoreRedZone({ incidentCount: -5, maxSeverity: 'critical', recentCount: -2, populationExposed: -100 })).toEqual({ score: 0, band: 'low' });
+  });
   it('is monotonic in every evidence dimension', () => {
     const none = scoreRedZone({ incidentCount: 1, maxSeverity: 'low' }).score;
     const moreHistory = scoreRedZone({ incidentCount: 6, maxSeverity: 'low' }).score;
@@ -197,6 +200,45 @@ describe('prioritizeHabitations', () => {
   it('assigns middle phases for partial risk', () => {
     const mid = { ...safe, id: 'h3', past_incidents: 4, kutcha_share: 60, vulnerable_count: 1500 };
     const [out] = prioritizeHabitations([mid], [], []);
-    expect(['short_term', 'medium_term']).toContain(out.phase);
+    // Exact: vuln round(0.3*15 + 0.6*15)=14, history 12+0=12 -> 26.
+    expect(out.score).toBe(26);
+    expect(out.phase).toBe('medium_term');
+  });
+  it('pins the exact phase boundaries 70 / 45 / 25', () => {
+    const zoneOf = (id) => ({ id, name: id, status: 'active', intensity: 'extreme', latitude: 28.6, longitude: 77.2, radius_meters: 3000 });
+    // 70 = exposure 45 + vuln 15 + history 10 -> immediate.
+    const seventy = { id: 'h70', name: 'H70', latitude: 28.6, longitude: 77.2, population: 100, vulnerable_count: 100, kutcha_share: 0, red_zone_id: 'z', past_incidents: 0 };
+    const near70 = [0, 1, 2, 3].map((i) => report(`n70-${i}`, 28.601 + i * 0.001, 77.201));
+    const [o70] = prioritizeHabitations([seventy], [zoneOf('z')], near70);
+    expect(o70.score).toBe(70);
+    expect(o70.phase).toBe('immediate');
+    // 45 = exposure 45 alone -> short_term.
+    const fortyFive = { ...seventy, id: 'h45', vulnerable_count: 0 };
+    const [o45] = prioritizeHabitations([fortyFive], [zoneOf('z')], []);
+    expect(o45.score).toBe(45);
+    expect(o45.phase).toBe('short_term');
+    // 25 = history 15 + 10 alone -> medium_term.
+    const twentyFive = { id: 'h25', name: 'H25', latitude: 20.0, longitude: 75.0, population: 100, vulnerable_count: 0, kutcha_share: 0, red_zone_id: null, past_incidents: 5 };
+    const near25 = [0, 1, 2, 3].map((i) => report(`n25-${i}`, 20.001 + i * 0.001, 75.001));
+    const [o25] = prioritizeHabitations([twentyFive], [], near25);
+    expect(o25.score).toBe(25);
+    expect(o25.phase).toBe('medium_term');
+  });
+  it('floors edge distance at zero inside an unlinked active zone', () => {
+    const big = { id: 'rz-big', name: 'Big Zone', status: 'active', intensity: 'high', latitude: 28.6, longitude: 77.2, radius_meters: 20000 };
+    const inside = { id: 'h-in', name: 'Inside Hamlet', latitude: 28.6, longitude: 77.2, population: 100, vulnerable_count: 0, kutcha_share: 0, red_zone_id: null, past_incidents: 0 };
+    const [out] = prioritizeHabitations([inside], [big], []);
+    // Exposure caps at 30 for proximity; the reason never prints a negative.
+    expect(out.score).toBe(30);
+    expect(out.score).toBeLessThanOrEqual(100);
+    expect(out.reasons.join(' ')).not.toMatch(/-\d/);
+    expect(out.reasons.some((r) => r.includes('Within 0.0 km'))).toBe(true);
+  });
+  it('scores unknown population as zero vulnerability with a verify reason', () => {
+    const unknown = { id: 'h-u', name: 'Unmapped', latitude: 20.0, longitude: 75.0, population: 0, vulnerable_count: 0, kutcha_share: 0, red_zone_id: null, past_incidents: 0 };
+    const [out] = prioritizeHabitations([unknown], [], []);
+    expect(out.score).toBe(0);
+    expect(out.phase).toBe('monitoring');
+    expect(out.reasons).toContain('Population unrecorded — verify on the ground');
   });
 });

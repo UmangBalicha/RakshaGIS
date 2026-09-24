@@ -22,7 +22,8 @@ import {
 } from '../../lib/utils';
 import { HABITATION_TYPES } from '../../lib/types';
 import { useReportStore } from '../../stores/reportStore';
-import { useLiveReports } from '../../lib/hooks';
+import { useLiveReports, useWideScreen } from '../../lib/hooks';
+import { MapAutoResize } from '../../components/map/IncidentMap';
 import { getMapTiles } from '../../lib/maptiles';
 import { Badge, Button, Card, CardContent, EmptyState, Input, Label, Modal, Select, Spinner, Stat, Textarea } from '../../components/ui';
 
@@ -63,6 +64,8 @@ const EMPTY_HAB = {
 
 function HabitationForm({ initial, saving, redZones, onSubmit }) {
   const [form, setForm] = useState(initial);
+  // Desktop wheel over the map traps page scrolling — match the public maps.
+  const allowZoom = useWideScreen();
   const lat = Number(form.latitude);
   const lng = Number(form.longitude);
   const validCoords = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
@@ -149,7 +152,8 @@ function HabitationForm({ initial, saving, redZones, onSubmit }) {
       <div>
         <Label required>Location — tap the map</Label>
         <div className="overflow-hidden rounded-xl border border-slate-200" style={{ height: '260px' }}>
-          <MapContainer center={validCoords ? [lat, lng] : [26.5, 79.5]} zoom={validCoords ? 13 : 5} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
+          <MapContainer center={validCoords ? [lat, lng] : [26.5, 79.5]} zoom={validCoords ? 13 : 5} scrollWheelZoom={allowZoom} style={{ height: '100%', width: '100%' }}>
+            <MapAutoResize />
             <TileLayer attribution={tiles.attribution} url={tiles.url} />
             <HabClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={habPin} /> : null}
@@ -238,7 +242,7 @@ function SiteCard({ site, redZones, onAllocate }) {
               <div className={cn('h-full rounded-full', gap !== null && gap < 0 ? 'bg-red-500' : gapPct >= 85 ? 'bg-amber-500' : 'bg-emerald-500')} style={{ width: `${gapPct}%` }} />
             </div>
           ) : null}
-          <p className="mt-1 text-xs text-slate-400 tabular-nums">
+          <p className="mt-1 text-xs text-slate-500 tabular-nums">
             Capacity {site.capacity?.toLocaleString('en-IN') ?? '—'} · sheltered {(site.current_occupancy ?? 0).toLocaleString('en-IN')} · allocated {(site.allocated_population ?? 0).toLocaleString('en-IN')}
           </p>
         </div>
@@ -284,6 +288,7 @@ export default function AdminRelocation() {
   const zones = useReportStore((s) => s.zones);
   const reports = useReportStore((s) => s.reports);
   const loading = useReportStore((s) => s.loading);
+  const loadError = useReportStore((s) => s.error);
   const refresh = useReportStore((s) => s.refresh);
   const [modal, setModal] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -365,6 +370,11 @@ export default function AdminRelocation() {
           <h2 className="text-sm font-extrabold text-slate-900">Priority queue — highest risk first</h2>
           {loading && habitations.length === 0 ? (
             <div className="flex justify-center py-12"><Spinner /></div>
+          ) : loadError && habitations.length === 0 ? (
+            <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4 text-center" role="alert">
+              <p className="text-sm font-bold text-red-800">Couldn’t load habitations — check your connection.</p>
+              <Button size="sm" className="mt-3" onClick={() => void refresh()}>Retry</Button>
+            </div>
           ) : queue.length === 0 ? (
             <div className="mt-3"><EmptyState title="No habitations tracked" hint="Add villages, towns or wards to start the relocation queue." /></div>
           ) : (
@@ -376,7 +386,7 @@ export default function AdminRelocation() {
                       <p className="text-sm font-bold text-slate-900">
                         <span className="mr-1.5 inline-flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-extrabold text-white">{i + 1}</span>
                         {h.name}
-                        <span className="ml-2 text-xs font-semibold text-slate-400">{h.habitation_type} · {h.population.toLocaleString('en-IN')} people</span>
+                        <span className="ml-2 text-xs font-semibold text-slate-500">{h.habitation_type} · {h.population.toLocaleString('en-IN')} people</span>
                       </p>
                       <ul className="mt-1 space-y-0.5 pl-8">
                         {reasons.map((r) => (
@@ -391,7 +401,7 @@ export default function AdminRelocation() {
                   </div>
                   <div className="mt-2 flex items-center gap-2 pl-8">
                     <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                      <div className={cn('h-full rounded-full', phase === 'immediate' ? 'bg-red-500' : phase === 'short_term' ? 'bg-orange-500' : phase === 'medium_term' ? 'bg-amber-500' : 'bg-slate-300')} style={{ width: `${score}%` }} />
+                      <div className={cn('h-full rounded-full', phase === 'immediate' ? 'bg-red-500' : phase === 'short_term' ? 'bg-orange-500' : phase === 'medium_term' ? 'bg-amber-500' : 'bg-slate-300')} style={{ width: `${Math.min(100, Math.max(0, score))}%` }} />
                     </div>
                     <button type="button" onClick={() => setModal({ mode: 'edit', hab: h })} className="min-h-[44px] cursor-pointer touch-manipulation rounded-lg px-3 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50">Edit</button>
                     <button type="button" onClick={() => setConfirmDelete(h)} className="min-h-[44px] cursor-pointer touch-manipulation rounded-lg px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50">Remove</button>

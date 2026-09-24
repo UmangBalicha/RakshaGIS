@@ -17,11 +17,13 @@ function ClickHandler({ onPick }) {
     });
     return null;
 }
-function Recenter({ center }) {
+function Recenter({ center, minZoom }) {
     const map = useMap();
     useEffect(() => {
-        map.setView([center.lat, center.lng], Math.max(map.getZoom(), 13));
-    }, [map, center]);
+        // GPS fixes zoom in to street level; manual taps/drags keep the
+        // user's chosen zoom so they never lose their bearings.
+        map.setView([center.lat, center.lng], minZoom == null ? map.getZoom() : Math.max(map.getZoom(), minZoom));
+    }, [map, center, minZoom]);
     return null;
 }
 /** Keep tiles correct across fold/unfold, rotation and toolbar changes. */
@@ -47,6 +49,8 @@ const pinIcon = L.divIcon({
 });
 export default function LocationPicker({ value, onChange, }) {
     const [locating, setLocating] = useState(false);
+    // Zoom floor applied only to GPS fixes (null = manual pick, keep zoom).
+    const [gpsZoom, setGpsZoom] = useState(null);
     const autoTried = useRef(false);
     const locateMe = (silent = false) => {
         if (!navigator.geolocation) {
@@ -60,6 +64,7 @@ export default function LocationPicker({ value, onChange, }) {
             setLocating(true);
         navigator.geolocation.getCurrentPosition((pos) => {
             setLocating(false);
+            setGpsZoom(13);
             onChange({ lat: pos.coords.latitude, lng: pos.coords.longitude });
             if (!silent)
                 toast.success('Location pinned from GPS.');
@@ -79,13 +84,14 @@ export default function LocationPicker({ value, onChange, }) {
     }, []);
     const center = value ?? DEFAULT_CENTER;
     const allowScrollZoom = useWideScreen();
-    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: '280px' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(ClickHandler, { onPick: onChange }), value ? _jsx(Recenter, { center: value }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
+    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: '280px' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(ClickHandler, { onPick: (ll) => { setGpsZoom(null); onChange(ll); } }), value ? _jsx(Recenter, { center: value, minZoom: gpsZoom }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
                                     dragend: (e) => {
                                         const m = e.target;
                                         const ll = m.getLatLng();
+                                        setGpsZoom(null);
                                         onChange({ lat: ll.lat, lng: ll.lng });
                                     },
-                                } })) : null] }), locating ? (_jsx("div", { className: "absolute inset-0 z-[1000] flex items-center justify-center bg-white/80", children: _jsxs("div", { className: "flex flex-col items-center text-center", children: [_jsx("span", { className: "inline-block h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600", "aria-label": "Loading" }), _jsx("p", { className: "mt-2 px-4 text-sm font-bold text-slate-700", children: "Finding your location\u2026" }), _jsx("p", { className: "mt-0.5 px-4 text-xs text-slate-500", children: "Keep GPS on \u2014 or tap the map to drop a pin." })] }) })) : null] }), _jsxs("div", { className: "mt-2 flex flex-wrap items-center gap-2", children: [_jsx(Button, { variant: "secondary", size: "md", onClick: () => locateMe(false), disabled: locating, children: locating ? 'Detecting your location…' : value ? 'Re-center on me' : 'Use my current location' }), _jsx("p", { className: "text-sm text-slate-500", children: value
+                                } })) : null] }), locating ? (_jsx("div", { className: "pointer-events-none absolute inset-0 z-[1000] flex items-center justify-center bg-white/80", children: _jsxs("div", { className: "flex flex-col items-center text-center", children: [_jsx("span", { className: "inline-block h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-brand-600", "aria-label": "Loading" }), _jsx("p", { className: "mt-2 px-4 text-sm font-bold text-slate-700", children: "Finding your location\u2026" }), _jsx("p", { className: "mt-0.5 px-4 text-xs text-slate-500", children: "Keep GPS on \u2014 or tap the map to drop a pin." })] }) })) : null] }), _jsxs("div", { className: "mt-2 flex flex-wrap items-center gap-2", children: [_jsx(Button, { variant: "secondary", size: "md", onClick: () => locateMe(false), disabled: locating, children: locating ? 'Detecting your location…' : value ? 'Re-center on me' : 'Use my current location' }), _jsx("p", { className: "text-sm text-slate-500", children: value
                             ? `Pinned at ${value.lat.toFixed(5)}, ${value.lng.toFixed(5)} — tap map or drag pin to adjust.`
                             : 'Tap anywhere on the map to drop a pin at the incident location.' })] })] }));
 }

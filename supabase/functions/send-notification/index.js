@@ -6,12 +6,19 @@
 // (e.g. MSG91 for India SMS, or any SMTP relay for email).
 //
 // Required secrets: supabase functions secrets set ALERT_WEBHOOK_URL=...
+// Optional (recommended): ALERT_WEBHOOK_SECRET=... — when set, every call
+// must carry a matching `x-webhook-secret` header, so random internet
+// callers cannot fire fabricated critical pages into your webhook.
 // Corps public web-push helper (optional)
 import { serve } from 'https://deno.land/std@0.208.0/http/server.ts';
 
 serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
+  }
+  const secret = Deno.env.get('ALERT_WEBHOOK_SECRET');
+  if (secret && req.headers.get('x-webhook-secret') !== secret) {
+    return new Response('Forbidden', { status: 403 });
   }
   try {
     const { record } = await req.json();
@@ -26,12 +33,13 @@ serve(async (req) => {
 
     const webhook = Deno.env.get('ALERT_WEBHOOK_URL');
     if (webhook) {
+      const address = String(record.address ?? 'unknown location').slice(0, 200);
       await fetch(webhook, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text:
-            `RakshaGIS ${record.severity.toUpperCase()} alert — ${record.disaster_type} incident at ${record.address} ` +
+            `RakshaGIS ${record.severity.toUpperCase()} alert — ${record.disaster_type} incident at ${address} ` +
             `(https://maps.google.com/?q=${record.latitude},${record.longitude})`,
         }),
       });

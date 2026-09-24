@@ -207,9 +207,13 @@ export function haversineMeters(aLat, aLng, bLat, bLng) {
     const dLng = toRad(bLng - aLng);
     const s = Math.sin(dLat / 2) ** 2 +
         Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
-    return 2 * R * Math.asin(Math.sqrt(s));
+    // Clamp: floating point can push s a hair past 1 for near-antipodal
+    // points, which would make asin return NaN and poison every comparison.
+    return 2 * R * Math.asin(Math.sqrt(Math.min(1, Math.max(0, s))));
 }
 export function formatDistance(meters) {
+    if (!Number.isFinite(meters))
+        return '—';
     if (meters < 1000)
         return `${Math.round(meters)} m`;
     return `${(meters / 1000).toFixed(1)} km`;
@@ -222,15 +226,30 @@ export function formatDuration(seconds) {
     return `${h}h ${mins % 60}m`;
 }
 /**
- * Universal navigation URL. On mobile it opens the Google Maps app directly
- * in turn-by-turn navigation mode (3D perspective view); on desktop it opens
- * the route preview in the browser. No API key needed.
- * Omit the origin to navigate from the device's live GPS position.
+ * Universal navigation URL. With a known origin the link carries
+ * dir_action=navigate so the Maps app opens in turn-by-turn navigation mode
+ * (not a passive route preview). Omit the origin to navigate from the
+ * device's live GPS position. No API key needed.
  */
 export function googleNavUrl(destLat, destLng, origin, mode = 'driving') {
     const dest = `${destLat},${destLng}`;
     const base = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=${mode}`;
     if (!origin)
         return base;
-    return `${base}&origin=${encodeURIComponent(`${origin.lat},${origin.lng}`)}`;
+    return `${base}&origin=${encodeURIComponent(`${origin.lat},${origin.lng}`)}&dir_action=navigate`;
+}
+/**
+ * Link target for navigation URLs: same-tab on touch devices (that is what
+ * triggers the OS handoff into the Google Maps app), new tab on desktop so
+ * the console is not navigated away from.
+ */
+export function navTarget() {
+    try {
+        if (typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches)
+            return '_self';
+    }
+    catch {
+        /* ignore */
+    }
+    return '_blank';
 }

@@ -51,10 +51,12 @@ export default function Privacy() {
 
           <Section title="Location">
             <p>
-              Your GPS position is used only when you ask for it — centering the map,
-              placing a report pin, or computing evacuation routes. It is never
-              tracked in the background and never stored except as part of a report
-              you choose to submit.
+              Your GPS position is requested when you open the map (to show
+              incidents near you) and when you place a report pin or compute
+              evacuation routes. It is never tracked in the background and
+              never stored except as part of a report you choose to submit.
+              You can deny the browser permission — the map and forms keep
+              working, you will just need to pan or drop the pin yourself.
             </p>
           </Section>
 

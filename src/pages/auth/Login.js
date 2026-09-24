@@ -26,7 +26,12 @@ export default function Login() {
             const profile = await signIn(values.email, values.password);
             setProfile(profile);
             toast.success(`Welcome back, ${profile.full_name}.`);
-            navigate(profile.role === 'admin' ? '/admin' : from, { replace: true });
+            // Honor the page the user originally tried to open (stored by the
+            // auth guard), unless it is itself an auth page.
+            const dest = from && !from.startsWith('/login') && from !== '/register'
+                ? from
+                : (profile.role === 'admin' ? '/admin' : '/');
+            navigate(dest, { replace: true });
         }
         catch (e) {
             toast.error(e instanceof Error ? e.message : 'Sign in failed.');

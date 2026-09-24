@@ -104,7 +104,7 @@ describe('report CRUD', () => {
     );
     expect(created.id).toMatch(/^rpt-/);
     expect(created.status).toBe('pending');
-    expect(created.reporter_name).toBe('Anonymous citizen');
+    expect(created.reporter_name).toBe('Citizen Reporter');
 
     const fetched = await mockGetReport(created.id);
     expect(fetched?.address).toBe('Test Street');

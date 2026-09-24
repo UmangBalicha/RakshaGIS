@@ -86,6 +86,23 @@
     outline-offset: 2px;
     border-radius: 4px;
   }
+
+  /* Raw <button>s (disaster tiles, Yes/No, tabs, map popups) get the same
+     treatment: blue-700 clears 3:1 on any light background. */
+  button:focus-visible,
+  [role='button']:focus-visible {
+    outline: 2px solid #1d4ed8;
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+}
+
+/* Leaflet +/- controls ship at 30px — raise to the 44px touch minimum. */
+.leaflet-touch .leaflet-bar a,
+.leaflet-bar a {
+  min-width: 44px;
+  min-height: 44px;
+  line-height: 44px;
 }
 
 /* ---------- Viewport-relative map heights (all phones) ----------
@@ -134,11 +151,17 @@
 }
 
 .leaflet-container:focus {
-  outline: 2px solid #93c5fd;
+  outline: 2px solid #1d4ed8;
   outline-offset: -2px;
 }
 
 .rg-marker {
+  /* Absolutely centered inside the 44px Leaflet icon box (inset + auto
+     margins): the pin lands on its true lat/lng. inset/margin never fight
+     the per-severity inline transform (diamond rotation). */
+  position: absolute;
+  inset: 0;
+  margin: auto;
   display: flex;
   align-items: center;
   justify-content: center;

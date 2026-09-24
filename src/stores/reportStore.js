@@ -7,6 +7,7 @@ export const DEFAULT_FILTERS = {
     status: 'all',
     disasterType: 'all',
 };
+let refreshSeq = 0;
 export const useReportStore = create()((set, get) => ({
     reports: [],
     alerts: [],
@@ -18,7 +19,21 @@ export const useReportStore = create()((set, get) => ({
     filters: DEFAULT_FILTERS,
     setFilters: (patch) => set((s) => ({ filters: { ...s.filters, ...patch } })),
     resetFilters: () => set({ filters: DEFAULT_FILTERS }),
+    // Drop all cached data (used on sign-out so the next user never sees
+    // the previous user's reports/alerts).
+    reset: () => set({
+        reports: [],
+        alerts: [],
+        zones: [],
+        redZones: [],
+        habitations: [],
+        loading: false,
+        error: null,
+    }),
     refresh: async () => {
+        // Monotonic id: realtime bursts fire concurrent refresh() calls, so a
+        // slow older response must never overwrite fresher data.
+        const seq = ++refreshSeq;
         set({ loading: true, error: null });
         try {
             const [reports, alerts, zones, redZones, habitations] = await Promise.all([
@@ -28,9 +43,13 @@ export const useReportStore = create()((set, get) => ({
                 listRedZones(),
                 listHabitations(),
             ]);
+            if (seq !== refreshSeq)
+                return;
             set({ reports, alerts, zones, redZones, habitations, loading: false });
         }
         catch (e) {
+            if (seq !== refreshSeq)
+                return;
             set({
                 loading: false,
                 error: e instanceof Error ? e.message : 'Failed to load reports.',

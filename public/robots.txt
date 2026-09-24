@@ -1,5 +1,5 @@
 User-agent: *
 Allow: /
-Disallow: /admin/
+Disallow: /admin
 
-Sitemap: https://YOUR-PRODUCTION-DOMAIN/sitemap.xml
+Sitemap: https://raksha-gis.vercel.app/sitemap.xml

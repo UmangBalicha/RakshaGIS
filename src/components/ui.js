@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 /* Minimal shadcn-style UI primitives (light theme only). */
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { cn } from '../lib/utils';
 const BTN_VARIANTS = {
     primary: 'bg-brand-600 text-white shadow-sm hover:bg-brand-700 focus-visible:ring-brand-500',
@@ -65,17 +65,48 @@ export function EmptyState({ title, hint }) {
 }
 /* ---------- Modal ---------- */
 export function Modal({ open, onClose, title, children, wide, }) {
+    const panelRef = useRef(null);
     useEffect(() => {
         if (!open)
             return;
         const onKey = (e) => {
-            if (e.key === 'Escape')
+            if (e.key === 'Escape') {
                 onClose();
+                return;
+            }
+            if (e.key !== 'Tab')
+                return;
+            // Focus trap: keep Tab cycling inside the dialog so keyboard
+            // users can never tab out onto the page behind it.
+            const panel = panelRef.current;
+            if (!panel)
+                return;
+            const list = Array.from(panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter((el) => !el.disabled && el.offsetParent !== null);
+            if (list.length === 0)
+                return;
+            const first = list[0];
+            const last = list[list.length - 1];
+            if (e.shiftKey && document.activeElement === first) {
+                e.preventDefault();
+                last.focus();
+            }
+            else if (!e.shiftKey && document.activeElement === last) {
+                e.preventDefault();
+                first.focus();
+            }
         };
         window.addEventListener('keydown', onKey);
-        return () => window.removeEventListener('keydown', onKey);
+        // Lock background scroll (bottom-sheet on mobile) and move focus
+        // into the dialog on open.
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        panelRef.current?.focus();
+        return () => {
+            window.removeEventListener('keydown', onKey);
+            document.body.style.overflow = prevOverflow;
+        };
     }, [open, onClose]);
     if (!open)
         return null;
-    return (_jsx("div", { className: "fixed inset-0 z-[1200] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6", onClick: onClose, role: "dialog", "aria-modal": "true", "aria-label": title, children: _jsxs("div", { className: cn('rg-modal-panel w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'), onClick: (e) => e.stopPropagation(), children: [_jsxs("div", { className: "sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4", children: [_jsx("h3", { className: "pr-2 text-base font-bold text-slate-900", children: title }), _jsx("button", { type: "button", onClick: onClose, className: "flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-lg px-3 py-2 text-xl leading-none text-slate-400 hover:bg-slate-100 hover:text-slate-700", "aria-label": "Close", children: "\u00D7" })] }), _jsx("div", { className: "px-5 py-4", children: children })] }) }));
+    return (_jsx("div", { className: "fixed inset-0 z-[1200] flex items-end justify-center bg-slate-900/50 p-0 sm:items-center sm:p-6", onClick: onClose, role: "dialog", "aria-modal": "true", "aria-label": title, children: _jsxs("div", { ref: panelRef, tabIndex: -1, className: cn('rg-modal-panel w-full overflow-y-auto rounded-t-2xl bg-white shadow-xl focus:outline-none sm:rounded-2xl', wide ? 'sm:max-w-3xl' : 'sm:max-w-lg'), onClick: (e) => e.stopPropagation(), children: [_jsxs("div", { className: "sticky top-0 flex items-center justify-between border-b border-slate-100 bg-white px-5 py-4", children: [_jsx("h3", { className: "pr-2 text-base font-bold text-slate-900", children: title }), _jsx("button", { type: "button", onClick: onClose, className: "flex min-h-[44px] min-w-[44px] shrink-0 cursor-pointer touch-manipulation items-center justify-center rounded-lg px-3 py-2 text-xl leading-none text-slate-500 hover:bg-slate-100 hover:text-slate-700", "aria-label": "Close", children: "\u00D7" })] }), _jsx("div", { className: "px-5 py-4", children: children })] }) }));
 }

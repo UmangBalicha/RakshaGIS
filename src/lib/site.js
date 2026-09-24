@@ -6,7 +6,7 @@
  */
 
 /** Canonical production URL, e.g. 'https://rakshagis.in'. No trailing slash. */
-export const SITE_URL = 'https://YOUR-PRODUCTION-DOMAIN';
+export const SITE_URL = 'https://raksha-gis.vercel.app';
 
 /** Public contact email shown on the Privacy/Terms pages when set. */
 export const CONTACT_EMAIL = '';

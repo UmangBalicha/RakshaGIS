@@ -76,15 +76,6 @@ export async function createReport(input, reporter, severity) {
     if (error)
         throw error;
     const report = toReport(data);
-    // Best-effort alert log (RLS may restrict for public role; never blocks the report).
-    await db
-        .from('alert_logs')
-        .insert({
-        report_id: report.id,
-        severity,
-        message: `New ${severity} ${report.disaster_type.replace(/_/g, ' ')} incident — ${report.address}`,
-    })
-        .then(() => undefined, () => undefined);
     return report;
 }
 export async function updateReport(id, patch) {
@@ -242,6 +233,45 @@ export async function deleteHabitation(id) {
         throw error;
 }
 /* ---------------- Image uploads ---------------- */
+/**
+ * Downscale a photo to a max-800px JPEG data URL. Demo mode persists photos
+ * as data URLs in localStorage (~5 MB quota), so multi-MB originals would
+ * silently blow the quota and lose the report on reload. Falls back to the
+ * raw data URL if the image cannot be decoded.
+ */
+function downscaleImage(file) {
+    const readRaw = () => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error('Could not read a photo.'));
+        reader.readAsDataURL(file);
+    });
+    return new Promise((resolve) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const max = 800;
+                const scale = Math.min(1, max / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height);
+                URL.revokeObjectURL(url);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            }
+            catch {
+                URL.revokeObjectURL(url);
+                resolve(readRaw());
+            }
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            resolve(readRaw());
+        };
+        img.src = url;
+    });
+}
 export async function uploadReportImages(files) {
     if (files.length === 0)
         return [];
@@ -254,12 +284,7 @@ export async function uploadReportImages(files) {
             throw new Error(`"${f.name}" exceeds 4 MB.`);
     }
     if (isDemoMode || !supabase) {
-        return Promise.all(files.map((f) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(String(reader.result));
-            reader.onerror = () => reject(new Error('Could not read a photo.'));
-            reader.readAsDataURL(f);
-        })));
+        return Promise.all(files.map((f) => downscaleImage(f)));
     }
     const urls = [];
     for (const f of files) {

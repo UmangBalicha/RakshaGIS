@@ -5,13 +5,14 @@ import L from 'leaflet';
 import { AlertTriangle, MapPin, Plus, Sparkles } from 'lucide-react';
 import { createRedZone, deleteRedZone, updateRedZone } from '../../lib/api';
 import { identifyRedZoneCandidates, scoreRedZone } from '../../lib/intelligence';
-import { DISASTER_TYPE_META, RED_ZONE_INTENSITY_META, RED_ZONE_STATUS_META, cn, formatDateTime } from '../../lib/utils';
+import { DISASTER_TYPE_META, RED_ZONE_INTENSITY_META, RED_ZONE_STATUS_META, cn, formatDateTime, haversineMeters } from '../../lib/utils';
 import { getMapTiles } from '../../lib/maptiles';
 
 const tiles = getMapTiles();
 import { DISASTER_TYPES, RED_ZONE_INTENSITIES, RED_ZONE_STATUSES } from '../../lib/types';
 import { useReportStore } from '../../stores/reportStore';
-import { useLiveReports } from '../../lib/hooks';
+import { useLiveReports, useWideScreen } from '../../lib/hooks';
+import { MapAutoResize } from '../../components/map/IncidentMap';
 import { Badge, Button, Card, CardContent, EmptyState, Input, Label, Modal, Select, Spinner, Textarea } from '../../components/ui';
 import IncidentMap from '../../components/map/IncidentMap';
 
@@ -46,6 +47,8 @@ const EMPTY_FORM = {
 
 function RedZoneForm({ initial, saving, reports, onSubmit }) {
   const [form, setForm] = useState(initial);
+  // Desktop wheel over the map traps page scrolling — match the public maps.
+  const allowZoom = useWideScreen();
   const lat = Number(form.latitude);
   const lng = Number(form.longitude);
   const validCoords = Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180;
@@ -67,7 +70,10 @@ function RedZoneForm({ initial, saving, reports, onSubmit }) {
       (r) =>
         r.status !== 'resolved' &&
         r.status !== 'false_alarm' &&
-        Math.hypot(r.latitude - lat, r.longitude - lng) * 111000 <= radius,
+        // True great-circle distance: Math.hypot on raw degrees over-sized
+        // the circle up to 2x away from the equator and disagreed with
+        // haversineMeters used everywhere else in this feature.
+        haversineMeters(r.latitude, r.longitude, lat, lng) <= radius,
     );
     if (inside.length === 0) return { score: 0, band: 'low', count: 0 };
     const rank = { low: 1, medium: 2, high: 3, critical: 4 };
@@ -150,9 +156,10 @@ function RedZoneForm({ initial, saving, reports, onSubmit }) {
           <MapContainer
             center={validCoords ? [lat, lng] : [26.5, 79.5]}
             zoom={validCoords ? 12 : 5}
-            scrollWheelZoom
+            scrollWheelZoom={allowZoom}
             style={{ height: '100%', width: '100%' }}
           >
+            <MapAutoResize />
             <TileLayer attribution={tiles.attribution} url={tiles.url} />
             <ZoneClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={redPin} /> : null}
@@ -278,6 +285,15 @@ export default function AdminRedZones() {
   };
 
   const prefillFromCandidate = (c) => {
+    // Recent activity must be counted from reports inside the 7-day window —
+    // passing the total incident count maxed the "recent activity" 20 points
+    // regardless of age and made the suggested band unexplainable.
+    const weekAgo = Date.now() - 7 * 86400000;
+    const byId = new Map(reports.map((r) => [r.id, r]));
+    const recentCount = c.report_ids.filter((id) => {
+      const t = byId.get(id)?.created_at;
+      return t != null && new Date(t).getTime() >= weekAgo;
+    }).length;
     setModal({
       mode: 'add',
       initial: {
@@ -286,7 +302,7 @@ export default function AdminRedZones() {
         latitude: String(c.latitude.toFixed(6)),
         longitude: String(c.longitude.toFixed(6)),
         radius_meters: String(c.radius_meters),
-        intensity: scoreRedZone({ incidentCount: c.incident_count, maxSeverity: c.max_severity, recentCount: c.incident_count }).band,
+        intensity: scoreRedZone({ incidentCount: c.incident_count, maxSeverity: c.max_severity, recentCount }).band,
         incident_count: String(c.incident_count),
       },
     });
@@ -358,7 +374,7 @@ export default function AdminRedZones() {
       </Card>
 
       <Card>
-        <CardContent className="overflow-x-auto p-0">
+        <CardContent className="rg-scroll overflow-x-auto p-0">
           {redZones.length === 0 ? null : (
             <table className="w-full min-w-220 text-left text-sm">
               <thead>
@@ -377,7 +393,7 @@ export default function AdminRedZones() {
                   <tr key={z.id} className="border-b border-slate-50 last:border-0 hover:bg-slate-50/70">
                     <td className="px-4 py-3">
                       <p className="font-bold text-slate-900">{z.name}</p>
-                      <p className="max-w-56 truncate text-xs text-slate-400">
+                      <p className="max-w-56 truncate text-xs text-slate-500">
                         {(z.hazard_types || []).join(', ').replace(/_/g, ' ')} · {(z.radius_meters / 1000).toFixed(1)} km radius
                       </p>
                     </td>

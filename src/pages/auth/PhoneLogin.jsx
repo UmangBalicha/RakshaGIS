@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { sendPhoneOtp, verifyPhoneOtp } from '../../lib/auth';
 import { isDemoMode } from '../../lib/api';
@@ -17,6 +17,8 @@ function normalizePhone(raw) {
 
 export default function PhoneLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const from = location.state?.from ?? '/';
   const setProfile = useAuthStore((s) => s.setProfile);
   const [step, setStep] = useState(1);
   const [phone, setPhone] = useState('');
@@ -50,8 +52,9 @@ export default function PhoneLogin() {
 
   const handleVerify = async () => {
     setCodeError('');
-    if (code.trim().length < 4) {
-      setCodeError('Please enter the code from your SMS (at least 4 digits).');
+    const digits = code.trim();
+    if (!/^\d{6}$/.test(digits)) {
+      setCodeError('Enter the 6-digit code from your SMS.');
       return;
     }
     setBusy(true);
@@ -59,7 +62,10 @@ export default function PhoneLogin() {
       const profile = await verifyPhoneOtp({ phone, code, full_name: name || undefined });
       setProfile(profile);
       toast.success(`Verified. Welcome, ${profile.full_name}.`);
-      navigate(profile.role === 'admin' ? '/admin' : '/', { replace: true });
+      const dest = from && !from.startsWith('/login') && from !== '/register'
+        ? from
+        : (profile.role === 'admin' ? '/admin' : '/');
+      navigate(dest, { replace: true });
     } catch (e) {
       setCodeError(e instanceof Error ? e.message : 'Verification failed. Check the code and try again.');
     } finally {
@@ -106,6 +112,8 @@ export default function PhoneLogin() {
                 <Input
                   id="otp"
                   inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
                   placeholder="123456"
                   value={code}
                   aria-invalid={codeError ? true : undefined}

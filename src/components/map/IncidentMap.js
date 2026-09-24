@@ -1,4 +1,4 @@
-import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { jsx as _jsx, jsxs as _jsxs, Fragment as _Fragment } from "react/jsx-runtime";
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import L from 'leaflet';
@@ -11,6 +11,7 @@ import {
     cn,
     dangerRadiusMeters,
     googleNavUrl,
+    navTarget,
     timeAgo,
 } from '../../lib/utils';
 import { getMapTiles, loadMapmyIndiaSDK, mapmyIndiaKey } from '../../lib/maptiles';
@@ -23,6 +24,15 @@ const SEVERITY_COLOR = {
     critical: '#dc2626',
 };
 const iconCache = new Map();
+// Shape varies with severity so the map never relies on colour alone
+// (colour-vision deficiency): circle / squircle / diamond, plus the
+// critical pulse ring. Inline style overrides the .rg-marker default radius.
+const SEVERITY_SHAPE = {
+    low: 'border-radius:9999px',
+    medium: 'border-radius:8px',
+    high: 'border-radius:5px;transform:rotate(45deg)',
+    critical: 'border-radius:5px;transform:rotate(45deg)',
+};
 function severityIcon(sev) {
     const key = `sev-${sev}`;
     const cached = iconCache.get(key);
@@ -31,7 +41,9 @@ function severityIcon(sev) {
     const icon = L.divIcon({
         className: '',
         // Visual stays 26px; 44px iconSize gives a 44px touch target (Apple HIG).
-        html: `<div class="rg-marker${sev === 'critical' ? ' rg-marker-pulse' : ''}" style="width:26px;height:26px;background:${SEVERITY_COLOR[sev]}"></div>`,
+        // .rg-marker centers itself inside the 44px box (see index.css), so
+        // the pin lands on its true lat/lng instead of ~9px up-left of it.
+        html: `<div class="rg-marker${sev === 'critical' ? ' rg-marker-pulse' : ''}" style="width:26px;height:26px;background:${SEVERITY_COLOR[sev]};${SEVERITY_SHAPE[sev] ?? ''}"></div>`,
         iconSize: [44, 44],
         iconAnchor: [22, 22],
         popupAnchor: [0, -22],
@@ -57,13 +69,16 @@ function zoneIcon() {
 }
 function FitAll({ reports, fitKey }) {
     const map = useMap();
-    const fitted = useRef(false);
+    // Last fitted key ('auto' = first multi-report load). Refits when an
+    // explicit fitKey changes, but never yanks the map on live updates.
+    const fitted = useRef(null);
     useEffect(() => {
-        if (!fitKey || fitted.current)
+        if (reports.length < 2)
             return;
-        if (reports.length === 0)
+        const key = fitKey ?? 'auto';
+        if (fitted.current === key)
             return;
-        fitted.current = true;
+        fitted.current = key;
         const bounds = L.latLngBounds(reports.map((r) => [r.latitude, r.longitude]));
         map.fitBounds(bounds.pad(0.2));
     }, [map, reports, fitKey]);
@@ -112,6 +127,28 @@ function UserCenter({ enabled }) {
         return null;
     return _jsx(Marker, { position: pos, icon: userDotIcon, interactive: false });
 }
+/** Show the visitor's GPS as a blue dot WITHOUT moving the map (used on
+ * evacuation/detail maps where the incident — not the user — is the focus). */
+function UserDot() {
+    const map = useMap();
+    const [pos, setPos] = useState(null);
+    useEffect(() => {
+        if (!('geolocation' in navigator))
+            return;
+        let cancelled = false;
+        navigator.geolocation.getCurrentPosition((p) => {
+            if (cancelled)
+                return;
+            setPos([p.coords.latitude, p.coords.longitude]);
+        }, () => undefined, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+        return () => {
+            cancelled = true;
+        };
+    }, [map]);
+    if (!pos)
+        return null;
+    return _jsx(Marker, { position: pos, icon: userDotIcon, interactive: false });
+}
 /**
  * Keep Leaflet in sync when its container changes size: folding/unfolding a
  * foldable, rotating the phone, split-screen, or dynamic toolbar changes.
@@ -139,7 +176,15 @@ function InvalidateOnResize() {
     }, [map]);
     return null;
 }
-export default function IncidentMap({ reports, zones = [], redZones, showDangerZones = false, selectedRoute = null, height = '420px', className, fitKey, focus, centerOnUser = false, onViewDetails, onEvacuate, }) {
+/**
+ * Shared map hygiene for admin maps (which render their own MapContainers):
+ * keep tiles correct across fold/unfold, rotation and toolbar changes.
+ * Public maps get this automatically via IncidentMap.
+ */
+export function MapAutoResize() {
+    return _jsx(InvalidateOnResize, {});
+}
+export default function IncidentMap({ reports, zones = [], redZones, showDangerZones = false, selectedRoute = null, height = '420px', className, fitKey, focus, centerOnUser = false, userDot = false, legend = true, onViewDetails, onEvacuate, }) {
     const markers = useMemo(() => new Map(), []);
     // Red zones default to the live store so every map (dashboard, modals)
     // shows them without extra wiring; pages may override via prop.
@@ -174,7 +219,7 @@ export default function IncidentMap({ reports, zones = [], redZones, showDangerZ
     // the map; map still pans with one finger and zooms with pinch.
     // Live flag (not a one-shot read) so folding/unfolding updates behaviour.
     const allowScrollZoom = useWideScreen();
-    return (_jsx("div", { className: cn('overflow-hidden rounded-xl border border-slate-200', className), style: className ? undefined : { height }, children: _jsxs(MapContainer, { center: center, zoom: reports.length === 1 ? 12 : 5, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(FitAll, { reports: reports, fitKey: centerOnUser ? undefined : fitKey }), _jsx(FlyTo, { focus: focus, markers: markers }), _jsx(UserCenter, { enabled: centerOnUser }), showDangerZones
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: cn('overflow-hidden rounded-xl border border-slate-200', className), style: className ? undefined : { height }, children: _jsxs(MapContainer, { center: center, zoom: reports.length === 1 ? 12 : 5, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(FitAll, { reports: reports, fitKey: centerOnUser ? undefined : fitKey }), _jsx(FlyTo, { focus: focus, markers: markers }), _jsx(UserCenter, { enabled: centerOnUser }), userDot ? _jsx(UserDot, {}) : null, showDangerZones
                     ? reports.map((r) => (_jsx(Circle, { center: [r.latitude, r.longitude], radius: dangerRadiusMeters(r.severity), pathOptions: {
                             color: SEVERITY_COLOR[r.severity],
                             weight: 1.5,
@@ -193,7 +238,7 @@ export default function IncidentMap({ reports, zones = [], redZones, showDangerZ
                     .filter((z) => z.is_active)
                     .map((z) => (_jsx(Marker, { position: [z.latitude, z.longitude], icon: zoneIcon(), children: _jsx(Popup, { className: "rg-popup", maxWidth: 280, minWidth: 220, children: _jsxs("div", { className: "min-w-48", children: [_jsx("p", { className: "text-xs font-bold tracking-wide text-emerald-700 uppercase", children: "Safe zone" }), _jsx("p", { className: "text-sm font-bold text-slate-900", children: z.name }), _jsx("p", { className: "mt-0.5 text-sm text-slate-500", children: z.address }), _jsx("p", { className: "mt-1 text-xs text-slate-500", children: z.capacity
                                         ? `Occupancy ${z.current_occupancy}/${z.capacity}`
-                                        : 'Capacity not set' }), _jsx("a", { href: googleNavUrl(z.latitude, z.longitude), target: "_blank", rel: "noreferrer", className: "mt-2 flex min-h-[48px] items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-center text-sm font-extrabold text-white touch-manipulation hover:bg-emerald-700", children: "\uD83E\uDDED Navigate in 3D \u2192" })] }) }) }, z.id))), selectedRoute ? (_jsx(Polyline, { positions: selectedRoute.geometry, pathOptions: { color: '#2563eb', weight: 5, opacity: 0.85, dashArray: '2 6', lineCap: 'round' } })) : null, routeZone ? (_jsx(Circle, { center: [routeZone.latitude, routeZone.longitude], radius: 120, pathOptions: { color: '#16a34a', weight: 2, fillColor: '#16a34a', fillOpacity: 0.25 } })) : null, reports.map((r) => (_jsx(Marker, { position: [r.latitude, r.longitude], icon: severityIcon(r.severity), ref: (m) => {
+                                        : 'Capacity not set' }), _jsx("a", { href: googleNavUrl(z.latitude, z.longitude), target: navTarget(), rel: "noreferrer", className: "mt-2 flex min-h-[48px] items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-center text-sm font-extrabold text-white touch-manipulation hover:bg-emerald-700", children: "\uD83E\uDDED Navigate \u2192" })] }) }) }, z.id))), selectedRoute ? (_jsx(Polyline, { positions: selectedRoute.geometry, pathOptions: { color: '#2563eb', weight: 5, opacity: 0.85, dashArray: '2 6', lineCap: 'round' } })) : null, routeZone ? (_jsx(Circle, { center: [routeZone.latitude, routeZone.longitude], radius: 120, pathOptions: { color: '#16a34a', weight: 2, fillColor: '#16a34a', fillOpacity: 0.25 } })) : null, reports.map((r) => (_jsx(Marker, { position: [r.latitude, r.longitude], icon: severityIcon(r.severity), ref: (m) => {
                         markers.set(r.id, m);
-                    }, children: _jsx(Popup, { className: "rg-popup", maxWidth: 280, minWidth: 220, children: _jsxs("div", { className: "min-w-48", children: [_jsx("p", { className: "text-sm font-bold text-slate-900", children: DISASTER_TYPE_META[r.disaster_type].label }), _jsx("p", { className: "mt-0.5 text-sm text-slate-500", children: r.address }), _jsxs("div", { className: "mt-2 flex flex-wrap gap-1.5", children: [_jsx("span", { className: cn('inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ring-1 ring-inset', SEVERITY_META[r.severity].badge), children: SEVERITY_META[r.severity].label }), _jsx("span", { className: cn('inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ring-1 ring-inset', STATUS_META[r.status].badge), children: STATUS_META[r.status].label })] }), _jsx("p", { className: "mt-1.5 text-xs text-slate-400", children: timeAgo(r.created_at) }), _jsxs("div", { className: "mt-2 flex flex-col gap-2", children: [onViewDetails ? (_jsx("button", { type: "button", onClick: () => onViewDetails(r.id), className: "flex min-h-[44px] cursor-pointer touch-manipulation items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-200", children: "View details \u2192" })) : (_jsx(Link, { to: `/track/${r.id}`, className: "flex min-h-[44px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800 touch-manipulation hover:bg-slate-200", children: "View details \u2192" })), onEvacuate ? (_jsx("button", { type: "button", onClick: () => onEvacuate(r), className: "flex min-h-[48px] cursor-pointer touch-manipulation items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-sm font-extrabold text-white hover:bg-emerald-700", children: "\uD83E\uDDED Evacuate safely \u2192" })) : (_jsx(Link, { to: `/evacuate/${r.id}`, className: "flex min-h-[48px] items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-sm font-extrabold text-white touch-manipulation hover:bg-emerald-700", children: "\uD83E\uDDED Evacuate safely \u2192" }))] })] }) }) }, r.id)))] }) }));
+                    }, children: _jsx(Popup, { className: "rg-popup", maxWidth: 280, minWidth: 220, children: _jsxs("div", { className: "min-w-48", children: [_jsx("p", { className: "text-sm font-bold text-slate-900", children: DISASTER_TYPE_META[r.disaster_type].label }), _jsx("p", { className: "mt-0.5 text-sm text-slate-500", children: r.address }), _jsxs("div", { className: "mt-2 flex flex-wrap gap-1.5", children: [_jsx("span", { className: cn('inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ring-1 ring-inset', SEVERITY_META[r.severity].badge), children: SEVERITY_META[r.severity].label }), _jsx("span", { className: cn('inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ring-1 ring-inset', STATUS_META[r.status].badge), children: STATUS_META[r.status].label })] }), _jsx("p", { className: "mt-1.5 text-xs text-slate-500", children: timeAgo(r.created_at) }), _jsxs("div", { className: "mt-2 flex flex-col gap-2", children: [onViewDetails ? (_jsx("button", { type: "button", onClick: () => onViewDetails(r.id), className: "flex min-h-[44px] cursor-pointer touch-manipulation items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800 hover:bg-slate-200", children: "View details \u2192" })) : (_jsx(Link, { to: `/track/${r.id}`, className: "flex min-h-[44px] items-center justify-center rounded-lg bg-slate-100 px-3 py-2.5 text-sm font-bold text-slate-800 touch-manipulation hover:bg-slate-200", children: "View details \u2192" })), onEvacuate ? (_jsx("button", { type: "button", onClick: () => onEvacuate(r), className: "flex min-h-[48px] cursor-pointer touch-manipulation items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-sm font-extrabold text-white hover:bg-emerald-700", children: "\uD83E\uDDED Evacuate safely \u2192" })) : (_jsx(Link, { to: `/evacuate/${r.id}`, className: "flex min-h-[48px] items-center justify-center rounded-lg bg-emerald-600 px-3 py-3 text-sm font-extrabold text-white touch-manipulation hover:bg-emerald-700", children: "\uD83E\uDDED Evacuate safely \u2192" }))] })] }) }) }, r.id)))] }) }), legend ? (_jsxs("div", { className: "flex flex-wrap gap-x-3 gap-y-1.5 px-1 pt-2 text-xs font-semibold text-slate-500", role: "img", "aria-label": "Map legend: marker colour and shape show severity, dashed red circles are red zones, green dots are safe zones", children: [_jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-2.5 w-2.5", style: { background: '#10b981', borderRadius: '9999px' } }), "Low"] }), _jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-2.5 w-2.5", style: { background: '#f59e0b', borderRadius: '2px' } }), "Medium"] }), _jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-2.5 w-2.5", style: { background: '#f97316', borderRadius: '1px', transform: 'rotate(45deg)' } }), "High"] }), _jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-2.5 w-2.5", style: { background: '#dc2626', borderRadius: '1px', transform: 'rotate(45deg)' } }), "Critical"] }), _jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-0 w-5 border-t-2 border-dashed", style: { borderColor: '#b91c1c' } }), "Red zone"] }), _jsxs("span", { className: "inline-flex items-center gap-1", children: [_jsx("span", { className: "inline-block h-2.5 w-2.5 rounded-full bg-emerald-600" }), "Safe zone"] })] })) : null] }));
 }

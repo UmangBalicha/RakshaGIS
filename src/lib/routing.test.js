@@ -136,7 +136,7 @@ describe('getEvacuationRoutes', () => {
     expect(routes).toHaveLength(1);
     expect(routes[0].is_estimate).toBe(true);
     expect(routes[0].profile).toBe('walking');
-    expect(routes[0].duration_seconds).toBe(600 * 3.5);
+    expect(routes[0].duration_seconds).toBe(600 * 6);
   });
 
   it('serves repeated identical requests from cache without refetching', async () => {
@@ -173,5 +173,50 @@ describe('getEvacuationRoutes', () => {
     expect(calls).toBe(2);
     expect(routes).toHaveLength(1);
     expect(routes[0].is_estimate).toBe(false);
+  });
+
+  it('ignores tampered cache entries and refetches instead of showing NaN', async () => {
+    stubWindow();
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    let fetchCount = 0;
+    globalThis.fetch = () => {
+      fetchCount += 1;
+      return Promise.resolve(osrmResponse(2100, 480));
+    };
+    const zones = [zone('z1', 28.61, 77.21)];
+    await getEvacuationRoutes(28.6, 77.2, zones, 'driving');
+    expect(fetchCount).toBe(1);
+    // Corrupt the persisted record the way a truncated write would.
+    const list = JSON.parse(store.get('rakshagis_routes_v1'));
+    delete list[0].route.distance;
+    list[0].route.geometry = 'garbage';
+    store.set('rakshagis_routes_v1', JSON.stringify(list));
+    const routes = await getEvacuationRoutes(28.6, 77.2, zones, 'driving');
+    expect(fetchCount).toBe(2);
+    expect(Number.isFinite(routes[0].distance_meters)).toBe(true);
+  });
+
+  it('does not collide cache keys for origins ~100 m apart', async () => {
+    stubWindow();
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    let fetchCount = 0;
+    globalThis.fetch = () => {
+      fetchCount += 1;
+      return Promise.resolve(osrmResponse());
+    };
+    const zones = [zone('z1', 28.61, 77.21)];
+    await getEvacuationRoutes(28.6, 77.2, zones, 'driving');
+    await getEvacuationRoutes(28.6009, 77.2, zones, 'driving');
+    expect(fetchCount).toBe(2);
   });
 });

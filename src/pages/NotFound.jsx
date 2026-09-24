@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { MapPin, ShieldAlert } from 'lucide-react';
-import { Button } from '../components/ui';
 
 export default function NotFound() {
   return (
@@ -15,15 +14,17 @@ export default function NotFound() {
         incident maps and reporting are one tap away.
       </p>
       <div className="mt-6 flex flex-col gap-2">
-        <Link to="/">
-          <Button size="lg" className="w-full">
-            Back to home →
-          </Button>
+        <Link
+          to="/"
+          className="inline-flex min-h-[56px] w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg bg-brand-600 px-6 text-base font-semibold text-white shadow-sm hover:bg-brand-700 active:scale-[0.98]"
+        >
+          Back to home →
         </Link>
-        <Link to="/report">
-          <Button variant="secondary" size="lg" className="w-full">
-            <MapPin className="h-5 w-5" /> Report an incident
-          </Button>
+        <Link
+          to="/report"
+          className="inline-flex min-h-[56px] w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-6 text-base font-semibold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[0.98]"
+        >
+          <MapPin className="h-5 w-5" /> Report an incident
         </Link>
       </div>
       <p className="mt-5 text-sm text-slate-500">

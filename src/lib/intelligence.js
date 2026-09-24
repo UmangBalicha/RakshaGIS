@@ -23,11 +23,13 @@ export function liveReports(reports) {
  * worst severity 30, recent activity 20, exposed population 10.
  */
 export function scoreRedZone({ incidentCount = 0, maxSeverity = 'low', recentCount = 0, populationExposed = 0 } = {}) {
-  const history = Math.min(1, incidentCount / 6) * 40;
+  // Every term is clamped to [0, weight]: hostile/negative inputs must never
+  // produce a negative score or punch through the 0–100 contract.
+  const history = Math.max(0, Math.min(1, incidentCount / 6)) * 40;
   // Severity describes recorded incidents — with zero incidents it adds nothing.
-  const severity = incidentCount > 0 ? ((SEVERITY_RANK[maxSeverity] ?? 1) / 4) * 30 : 0;
-  const recency = Math.min(1, recentCount / 3) * 20;
-  const exposure = Math.min(1, populationExposed / 5000) * 10;
+  const severity = incidentCount > 0 ? (Math.max(0, Math.min(4, SEVERITY_RANK[maxSeverity] ?? 1)) / 4) * 30 : 0;
+  const recency = Math.max(0, Math.min(1, recentCount / 3)) * 20;
+  const exposure = Math.max(0, Math.min(1, populationExposed / 5000)) * 10;
   const score = Math.round(history + severity + recency + exposure);
   return { score, band: intensityBand(score) };
 }
@@ -169,9 +171,13 @@ export function prioritizeHabitations(habitations, redZones = [], reports = []) 
       exposure = INTENSITY_WEIGHT[linked.intensity] ?? 10;
       reasons.push(`Inside ${linked.intensity} red zone “${linked.name}”`);
     } else {
+      // Edge-to-edge distance, floored at 0: a habitation inside an
+      // *unlinked* active zone is "0 km away", never a negative distance
+      // (which used to inflate exposure past its 45 cap and print
+      // "Within -1.7 km" in the reasons).
       let best = null;
       for (const z of active) {
-        const d = haversineMeters(h.latitude, h.longitude, z.latitude, z.longitude) - (z.radius_meters ?? 0);
+        const d = Math.max(0, haversineMeters(h.latitude, h.longitude, z.latitude, z.longitude) - (z.radius_meters ?? 0));
         if (best === null || d < best) best = d;
       }
       if (best !== null && best <= 10000) {
@@ -181,10 +187,14 @@ export function prioritizeHabitations(habitations, redZones = [], reports = []) 
     }
 
     // Vulnerability (30): fragile residents + fragile housing.
+    // Unknown population scores 0 — never invent "50% vulnerable", which used
+    // to hand empty/unrecorded settlements free points. Flag it instead.
     const pop = h.population > 0 ? h.population : 0;
-    const vulnShare = pop > 0 ? Math.min(1, (h.vulnerable_count ?? 0) / pop) : 0.5;
+    const popUnknown = pop === 0;
+    const vulnShare = popUnknown ? 0 : Math.min(1, (h.vulnerable_count ?? 0) / pop);
     const kutcha = Math.min(100, Math.max(0, h.kutcha_share ?? 0)) / 100;
     const vulnerability = Math.round(vulnShare * 15 + kutcha * 15);
+    if (popUnknown) reasons.push('Population unrecorded — verify on the ground');
     if (vulnShare >= 0.25) reasons.push(`${Math.round(vulnShare * 100)}% elderly / children / disabled residents`);
     if (kutcha >= 0.4) reasons.push(`${Math.round(kutcha * 100)}% kutcha (fragile) housing`);
 

@@ -5,6 +5,10 @@
  * For production fleets set VITE_OSRM_URL to a self-hosted OSRM instance.
  */
 import { formatDistance, haversineMeters } from './utils';
+/** Single calibrated walking speed every ETA in this file derives from. */
+const WALK_MPS = 1.4; // ~5 km/h, brisk evacuation pace
+/** OSRM urban driving is ~6x walking pace; the fallback re-times road geometry. */
+const WALK_RETIIME_FACTOR = 6;
 const OSRM_BASE = (import.meta.env.VITE_OSRM_URL ?? '').trim().replace(/\/$/, '') ||
     'https://router.project-osrm.org/route/v1';
 const ROUTE_TTL_MS = 15 * 60 * 1000;
@@ -45,7 +49,9 @@ function humanizeStep(step) {
     }
 }
 function routeCacheKey(fromLat, fromLng, toLat, toLng, profile) {
-    const r = (n) => Number(n).toFixed(3);
+    // ~1.1 m precision: toFixed(3) collided origins up to ~155 m apart and
+    // served each other's geometry and first instruction.
+    const r = (n) => Number(n).toFixed(5);
     return `${profile}:${r(fromLat)},${r(fromLng)}>${r(toLat)},${r(toLng)}`;
 }
 function readRouteCache() {
@@ -75,8 +81,18 @@ function writeRouteCache(list) {
 }
 function getCachedRoute(fromLat, fromLng, toLat, toLng, profile) {
     const key = routeCacheKey(fromLat, fromLng, toLat, toLng, profile);
-    const hit = readRouteCache().find((e) => e.key === key);
-    return hit ? hit.route : null;
+    const hit = readRouteCache().find((e) => e && e.key === key);
+    // Never trust a persisted entry blindly: a truncated/tampered record used
+    // to surface as distance_meters: undefined -> "NaN km" in the UI.
+    const r = hit?.route;
+    if (r &&
+        Number.isFinite(r.distance) &&
+        Number.isFinite(r.duration) &&
+        Array.isArray(r.geometry) &&
+        r.geometry.every((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))) {
+        return r;
+    }
+    return null;
 }
 function setCachedRoute(fromLat, fromLng, toLat, toLng, profile, route) {
     const key = routeCacheKey(fromLat, fromLng, toLat, toLng, profile);
@@ -104,53 +120,58 @@ async function fetchRoute(fromLat, fromLng, toLat, toLng, profile) {
     const osrmProfile = profile === 'walking' ? 'foot' : 'driving';
     const url = `${OSRM_BASE}/${osrmProfile}/${fromLng},${fromLat};${toLng},${toLat}` +
         `?overview=full&geometries=geojson&steps=true`;
-    const ctrl = new AbortController();
-    const timer = window.setTimeout(() => ctrl.abort(), 12000);
-    try {
-        for (let attempt = 0; attempt < 3; attempt++) {
-            let res;
+    for (let attempt = 0; attempt < 3; attempt++) {
+        // Fresh controller + timeout per attempt: the old single 12 s timer
+        // spanned the whole retry loop, so attempt 2 inherited an aborted
+        // signal and the 429/503 backoff below never actually ran.
+        const ctrl = new AbortController();
+        const timer = window.setTimeout(() => ctrl.abort(), 12000);
+        let res;
+        try {
+            res = await fetch(url, { signal: ctrl.signal });
+        }
+        catch {
+            window.clearTimeout(timer);
+            // Network down / timed out — retrying won't help; fail fast.
+            return null;
+        }
+        window.clearTimeout(timer);
+        if (res.ok) {
+            let data;
             try {
-                res = await fetch(url, { signal: ctrl.signal });
+                data = (await res.json());
             }
             catch {
-                // Network down / aborted — retrying won't help; fail fast.
                 return null;
             }
-            if (res.ok) {
-                const data = (await res.json());
-                if (data.code !== 'Ok' || !data.routes || data.routes.length === 0)
-                    return null;
-                const r = data.routes[0];
-                const geometry = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-                const steps = (r.legs[0]?.steps ?? []).map((s) => ({
-                    instruction: humanizeStep(s),
-                    distance_meters: s.distance,
-                    duration_seconds: s.duration,
-                }));
-                const road = { distance: r.distance, duration: r.duration, geometry, steps };
-                setCachedRoute(fromLat, fromLng, toLat, toLng, profile, road);
-                return road;
-            }
-            // Throttled or warming up — back off, then retry. Anything else is final.
-            if ((res.status === 429 || res.status === 503) && attempt < 2) {
-                await sleep(500 * (attempt + 1));
-                continue;
-            }
-            return null;
+            if (data.code !== 'Ok' || !Array.isArray(data.routes) || data.routes.length === 0)
+                return null;
+            const r = data.routes[0];
+            if (!r || !Array.isArray(r.geometry?.coordinates))
+                return null;
+            const geometry = r.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+            const steps = (r.legs?.[0]?.steps ?? []).map((s) => ({
+                instruction: humanizeStep(s),
+                distance_meters: s.distance,
+                duration_seconds: s.duration,
+            }));
+            const road = { distance: r.distance, duration: r.duration, geometry, steps };
+            setCachedRoute(fromLat, fromLng, toLat, toLng, profile, road);
+            return road;
+        }
+        // Throttled or warming up — back off, then retry. Anything else is final.
+        if ((res.status === 429 || res.status === 503) && attempt < 2) {
+            await sleep(500 * (attempt + 1));
+            continue;
         }
         return null;
     }
-    catch {
-        return null;
-    }
-    finally {
-        window.clearTimeout(timer);
-    }
+    return null;
 }
 function straightLineRoute(to, fromLat, fromLng, profile) {
     const dist = haversineMeters(fromLat, fromLng, to.latitude, to.longitude);
     // Conservative on-foot / congested-driving speed estimate.
-    const speedMps = profile === 'walking' ? 1.1 : 8;
+    const speedMps = profile === 'walking' ? WALK_MPS : 8;
     return {
         safe_zone_id: to.id,
         safe_zone_name: to.name,
@@ -204,7 +225,8 @@ export async function getEvacuationRoutes(fromLat, fromLng, zones, profile = 'dr
             };
         }
         // Foot routing data is patchy — fall back to the driving road geometry
-        // re-timed for walking rather than showing nothing.
+        // re-timed for walking (same WALK_MPS basis as straight-line ETAs)
+        // rather than showing nothing.
         if (profile === 'walking') {
             const drv = await fetchRoute(fromLat, fromLng, zone.latitude, zone.longitude, 'driving');
             if (drv) {
@@ -212,7 +234,7 @@ export async function getEvacuationRoutes(fromLat, fromLng, zones, profile = 'dr
                     safe_zone_id: zone.id,
                     safe_zone_name: zone.name,
                     distance_meters: drv.distance,
-                    duration_seconds: drv.duration * 3.5,
+                    duration_seconds: drv.duration * WALK_RETIIME_FACTOR,
                     geometry: drv.geometry,
                     steps: drv.steps,
                     profile,

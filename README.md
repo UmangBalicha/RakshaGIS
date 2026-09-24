@@ -38,9 +38,9 @@ Building Fire · Industrial Accident · Chemical Leak · Volcanic Activity · Ot
 
 - Safe zones (shelters, hospitals, open grounds, relief camps, schools) are
   managed by admins at `/admin/safe-zones` (map picker + capacity + amenities).
-- Citizens tap **Evacuate →** on any incident to see the 3 nearest safe zones
+- Citizens tap **Evacuate safely →** on any incident to see the 3 nearest safe zones
   ranked by live road time, with turn-by-turn directions (OSRM, driving/walking)
-  and an "Open live navigation" deep link. Works offline with straight-line
+  and a "Start navigation" deep link. Works offline with straight-line
   fallback when the routing server is unreachable.
 
 ## Red zones & relocation intelligence
@@ -62,7 +62,8 @@ The decision-support layer for proactive SDMA planning (see
   A–D on amenities, infrastructure access, spare capacity and red-zone
   separation; the planner tracks `capacity − sheltered − allocated` per site
   and flags over-capacity in red. Allocations are edited inline.
-- Covered by `src/lib/intelligence.test.js` (13 tests) and demo seed data
+- Covered by `src/lib/intelligence.test.js` (phase boundaries, score clamps
+  and edge cases) and demo seed data
   (6 red zones, 10 habitations, 4 relocation sites).
 
 ## Going live with Supabase
@@ -71,14 +72,28 @@ The decision-support layer for proactive SDMA planning (see
    once in the SQL editor (creates tables, RLS, triggers, storage policies).
    Then run `supabase/relocation_schema.sql` for the red-zone, habitation and
    site-assessment tables.
-2. Storage: the schema creates a public `report-images` bucket automatically.
-3. Auth: enable **Email** and **Phone (SMS)** providers as needed.
-4. Realtime: Database → Replication → enable `disaster_reports`, `safe_zones`,
+2. **Security hardening (required before public launch):** run
+   `supabase/harden.sql` once in the SQL editor. It closes the anonymous
+   profile-PII read, blocks role self-promotion (column grants + trigger),
+   constrains guest report inserts (no reporter spoofing, always `pending`),
+   and caps the photo bucket (4 MB, images only) with an admin takedown
+   policy. Safe to re-run.
+3. Storage: the schema creates a public `report-images` bucket automatically.
+4. Auth: enable the **Email** provider; turn **OFF** "Confirm email" for
+   frictionless signup. Phone (SMS) needs a paid SMS provider — until then
+   phone login works in demo mode only. After your own first signup, promote
+   yourself: `update profiles set role = 'admin' where email = 'you@x.in';`
+5. Realtime: Database → Replication → enable `disaster_reports`, `safe_zones`,
    `red_zones` and `habitations`.
-5. Copy `.env.example` to `.env` and fill in:
+6. (Optional seed) Run `supabase/seed-live.sql` once to populate 30 safe
+   zones, 6 red zones and 10 habitations. Incident reports are filed by users
+   via the app (guest reporting allowed).
+7. Copy `.env.example` to `.env` and fill in:
    `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
-6. (Optional) Deploy `supabase/functions/send-notification` for SMS/webhook
-   paging on critical reports.
+8. (Optional) Deploy `supabase/functions/send-notification` for SMS/webhook
+   paging on critical reports, with secrets `ALERT_WEBHOOK_URL` and
+   (recommended) `ALERT_WEBHOOK_SECRET` — callers must then send a matching
+   `x-webhook-secret` header.
 
 ## Deploy to Vercel
 
@@ -89,11 +104,22 @@ npm run build
 Push to GitHub → Import in Vercel → add the two `VITE_SUPABASE_*` env vars.
 No server needed — the frontend talks to Supabase directly.
 
+## Launch checklist (do all of these before announcing the URL)
+
+- [ ] `supabase/harden.sql` run in the SQL editor (closes PII + admin holes)
+- [ ] Replication enabled for `disaster_reports`, `safe_zones`, `red_zones`, `habitations`
+- [ ] Email provider on, "Confirm email" OFF; first user promoted to `admin` via SQL
+- [ ] `supabase/seed-live.sql` run (or zones/habitations declared via admin UI)
+- [ ] Vercel env vars `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY` set, then redeployed
+- [ ] `SITE_URL` in `src/lib/site.js` (+ sitemap/robots/og tags) points at the real domain
+- [ ] `CONTACT_EMAIL` filled so the Privacy/Terms contact section renders
+- [ ] Test on a real phone: file a report, open an evacuation route, check the admin console
+
 ## Project layout
 
 ```
 src/
-  app/router.js             # all routes (public + /admin)
+  app/router.jsx            # all routes (public + /admin)
   components/
     ui.js                   # shadcn-style primitives (light theme)
     layout/                 # PublicLayout, AdminLayout, RequireAuth/Admin
@@ -110,6 +136,9 @@ src/
   pages/                    # Home, ReportDisaster, TrackReport, auth, admin/*
 supabase/
   schema.sql                # full backend in one file
+  relocation_schema.sql     # red zones, habitations, site assessment
+  harden.sql                # security hardening (run once, re-runnable)
+  seed-live.sql             # one-shot live seed (30 zones, 6 reds, 10 habs)
   functions/send-notification/
 ```
 
@@ -119,4 +148,5 @@ supabase/
 - **Severity** is suggested from the report (injuries → critical; quake/tsunami/cyclone → critical) and can be overridden by an admin during triage.
 - **Statuses:** pending → investigating → contained → resolved (+ false_alarm).
 - **Realtime:** Supabase Realtime when live; local event fan-out in demo mode.
-- **Maps:** 100% OpenStreetMap — no paid tile/API keys anywhere.
+- **Maps:** OpenStreetMap by default; an optional `VITE_MAPMYINDIA_KEY`
+  switches to official MapmyIndia/Mappls tiles (see `.env.example`).

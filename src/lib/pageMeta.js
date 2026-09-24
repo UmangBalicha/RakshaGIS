@@ -5,6 +5,7 @@
  * router.subscribe). One integration point — no per-page boilerplate.
  */
 import { trackPageView } from './analytics.js';
+import { SITE_URL } from './site.js';
 
 export const DEFAULT_TITLE = 'RakshaGIS — Disaster Reporting & Evacuation';
 export const DEFAULT_DESCRIPTION =
@@ -91,7 +92,7 @@ function dynamic(pathname) {
     return {
       title: 'Evacuate to Safety — RakshaGIS',
       description:
-        'Live road routing to the nearest safe zone with turn-by-turn directions and 3D navigation.',
+        'Live road routing to the nearest safe zone with turn-by-turn directions and live navigation handoff.',
     };
   }
   if (pathname.startsWith('/track/')) {
@@ -100,7 +101,10 @@ function dynamic(pathname) {
       description: 'Live response progress for this disaster report, with evacuation routes.',
     };
   }
-  return null;
+  return {
+    title: 'Page Not Found — RakshaGIS',
+    description: 'This page does not exist. Return to the live disaster map or file an incident report.',
+  };
 }
 
 /** Resolve { title, description } for a pathname (exact match, then dynamic). */
@@ -112,6 +116,11 @@ export function metaForPath(pathname) {
 export function syncPageMeta(pathname) {
   const meta = metaForPath(pathname);
   document.title = meta.title;
+  const setMeta = (selector, content) => {
+    let tag = document.querySelector(selector);
+    if (!tag) return;
+    tag.setAttribute('content', content);
+  };
   let tag = document.querySelector('meta[name="description"]');
   if (!tag) {
     tag = document.createElement('meta');
@@ -119,5 +128,19 @@ export function syncPageMeta(pathname) {
     document.head.appendChild(tag);
   }
   tag.setAttribute('content', meta.description);
+  // Canonical + social tags follow the route too (helps in-app link previews;
+  // external scrapers still need server rendering for these).
+  let canon = document.querySelector('link[rel="canonical"]');
+  if (!canon) {
+    canon = document.createElement('link');
+    canon.setAttribute('rel', 'canonical');
+    document.head.appendChild(canon);
+  }
+  canon.setAttribute('href', `${SITE_URL}${pathname === '/' ? '/' : pathname}`);
+  setMeta('meta[property="og:title"]', meta.title);
+  setMeta('meta[property="og:description"]', meta.description);
+  setMeta('meta[property="og:url"]', `${SITE_URL}${pathname === '/' ? '/' : pathname}`);
+  setMeta('meta[name="twitter:title"]', meta.title);
+  setMeta('meta[name="twitter:description"]', meta.description);
   trackPageView(pathname);
 }

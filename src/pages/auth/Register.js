@@ -1,6 +1,6 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,6 +19,8 @@ const schema = z.object({
 });
 export default function Register() {
     const navigate = useNavigate();
+    const location = useLocation();
+    const from = location.state?.from ?? '/';
     const setProfile = useAuthStore((s) => s.setProfile);
     const [submitting, setSubmitting] = useState(false);
     const { register, handleSubmit, formState: { errors }, } = useForm({ resolver: zodResolver(schema) });
@@ -33,7 +35,10 @@ export default function Register() {
             });
             setProfile(profile);
             toast.success('Account created. Welcome to RakshaGIS.');
-            navigate(profile.role === 'admin' ? '/admin' : '/', { replace: true });
+            const dest = from && !from.startsWith('/login') && from !== '/register'
+                ? from
+                : (profile.role === 'admin' ? '/admin' : '/');
+            navigate(dest, { replace: true });
         }
         catch (e) {
             toast.error(e instanceof Error ? e.message : 'Registration failed.');

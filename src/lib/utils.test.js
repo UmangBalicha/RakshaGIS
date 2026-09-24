@@ -86,8 +86,7 @@ describe('dangerRadiusMeters', () => {
   });
 });
 
-describe('haversineMeters', () => {
-  it('is zero for identical points and symmetric', () => {
+describe('haversineMeters', () => {  it('is zero for identical points and symmetric', () => {
     expect(haversineMeters(28.6, 77.2, 28.6, 77.2)).toBe(0);
     const a = haversineMeters(28.6139, 77.209, 19.076, 72.8777);
     const b = haversineMeters(19.076, 72.8777, 28.6139, 77.209);
@@ -102,6 +101,24 @@ describe('haversineMeters', () => {
     const delhiMumbai = haversineMeters(28.6139, 77.209, 19.076, 72.8777);
     expect(delhiMumbai).toBeGreaterThan(1100000);
     expect(delhiMumbai).toBeLessThan(1200000);
+  });
+  it('never returns NaN for near-antipodal points', () => {
+    // Floating point pushes the haversine term a hair past 1 here; the
+    // result must stay finite so every radius comparison keeps working.
+    const d = haversineMeters(0, 0, 0.0001, 180);
+    expect(Number.isFinite(d)).toBe(true);
+    expect(d).toBeGreaterThan(19000000);
+  });
+});
+
+describe('formatDistance / formatDuration', () => {
+  it('formats meters and kilometers', () => {
+    expect(formatDistance(999)).toBe('999 m');
+    expect(formatDistance(1500)).toBe('1.5 km');
+  });
+  it('guards non-finite input instead of printing "NaN km"', () => {
+    expect(formatDistance(NaN)).toBe('—');
+    expect(formatDistance(Infinity)).toBe('—');
   });
 });
 
@@ -127,6 +144,12 @@ describe('googleNavUrl', () => {
     const url = googleNavUrl(30.3, 78.0, { lat: 28.6, lng: 77.2 }, 'walking');
     expect(url).toContain(`origin=${encodeURIComponent('28.6,77.2')}`);
     expect(url).toContain('travelmode=walking');
+    // Known origin => real turn-by-turn handoff, not a passive preview.
+    expect(url).toContain('dir_action=navigate');
+  });
+  it('omits dir_action without an origin (device GPS decides)', () => {
+    const url = googleNavUrl(30.3, 78.0);
+    expect(url).not.toContain('dir_action');
   });
 });
 

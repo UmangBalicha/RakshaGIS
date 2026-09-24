@@ -1,6 +1,13 @@
 const DB_KEY = 'rakshagis_mock_v3';
 const SESSION_KEY = 'rakshagis_session_v1';
 export const DEMO_OTP_CODE = '123456';
+// Documented in .env.example: VITE_DEMO_SEED=false starts demo mode with an
+// empty database (no demo accounts, reports or zones) instead of the seeded
+// showcase dataset.
+const DEMO_SEED_ON = (import.meta.env.VITE_DEMO_SEED ?? 'true').trim().toLowerCase() !== 'false';
+function emptyDb() {
+    return { version: 4, profiles: [], reports: [], alerts: [], notifications: [], zones: [], redZones: [], habitations: [] };
+}
 function hoursAgo(h) {
     return new Date(Date.now() - h * 3600_000).toISOString();
 }
@@ -239,7 +246,7 @@ function load() {
     catch {
         /* corrupted storage -> reseed */
     }
-    const fresh = seed();
+    const fresh = DEMO_SEED_ON ? seed() : emptyDb();
     try {
         localStorage.setItem(DB_KEY, JSON.stringify(fresh));
     }
@@ -256,14 +263,17 @@ function db() {
 }
 function save() {
     if (!mem)
-        return;
+        return true;
     try {
         localStorage.setItem(DB_KEY, JSON.stringify(mem));
     }
     catch {
-        /* ignore quota errors */
+        // Quota exceeded (e.g. large demo photos) — data lives in memory only.
+        // Callers that need durability surface a warning; never throw here.
+        return false;
     }
     window.dispatchEvent(new CustomEvent('rakshagis:reports-changed'));
+    return true;
 }
 function uid(prefix) {
     return `${prefix}-${Date.now().toString(36)}-${Math.floor(Math.random() * 1e6).toString(36)}`;
@@ -373,7 +383,7 @@ export function mockCreateReport(input, reporter, severity) {
     const report = {
         id: uid('rpt'),
         reporter_id: reporter?.id ?? null,
-        reporter_name: reporter?.full_name ?? 'Anonymous citizen',
+        reporter_name: reporter?.full_name ?? 'Citizen Reporter',
         latitude: input.latitude,
         longitude: input.longitude,
         address: input.address,
@@ -383,7 +393,7 @@ export function mockCreateReport(input, reporter, severity) {
         description: input.description,
         has_injuries: input.has_injuries,
         injury_count: input.injury_count,
-        images: input.images,
+        images: input.images ?? [],
         created_at: now,
         updated_at: now,
     };

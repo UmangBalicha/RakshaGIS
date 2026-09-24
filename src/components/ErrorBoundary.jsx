@@ -1,11 +1,14 @@
 import { Component } from 'react';
-import { Link } from 'react-router-dom';
 import { Button } from './ui';
 
 /**
  * Last-resort crash guard: a single runtime error must never blank the whole
  * app (critical for an emergency tool). Shows a branded fallback with recovery
  * actions instead of a white screen.
+ *
+ * NOTE: the fallback uses plain <a> tags, never react-router <Link> — this
+ * boundary sits *above* RouterProvider, so router components throw inside the
+ * fallback and would turn the safety net into a white screen.
  */
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -36,11 +39,12 @@ export default class ErrorBoundary extends Component {
             <Button size="lg" className="w-full" onClick={() => window.location.reload()}>
               Reload the app
             </Button>
-            <Link to="/">
-              <Button variant="secondary" size="lg" className="w-full">
-                Back to home
-              </Button>
-            </Link>
+            <a
+              href="/"
+              className="inline-flex min-h-[56px] w-full cursor-pointer touch-manipulation items-center justify-center gap-2 rounded-lg border border-slate-300 bg-white px-6 text-base font-semibold text-slate-700 shadow-sm hover:bg-slate-50 active:scale-[0.98]"
+            >
+              Back to home
+            </a>
           </div>
         </div>
       );
