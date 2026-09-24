@@ -1,16 +1,19 @@
 /* Map tile providers.
- * Default: CARTO basemaps (same OpenStreetMap data, served over a CDN built
- * for apps). tile.openstreetmap.org is donation-funded and its usage policy
- * forbids heavy application traffic, so it must NOT be the default for a
- * production user base — CARTO's free tier exists precisely for this.
+ * Default: Esri World Light Gray (base + reference overlay). Keyless,
+ * served over Esri's high-capacity CDN, muted light style that keeps
+ * incident markers legible. tile.openstreetmap.org is donation-funded and
+ * its usage policy forbids heavy application traffic; CARTO's anonymous
+ * basemaps now render an "API KEY REQUIRED" watermark — so neither is a
+ * valid default for a production user base.
  * With VITE_MAPMYINDIA_KEY set: loads the MapmyIndia/Mappls SDK, which
  * serves official Government of India map boundaries (correct J&K, Ladakh,
  * Arunachal Pradesh) as required for digital maps published in India.
  * Free for dev/testing — sign up at https://www.mapmyindia.com/api/signup
  */
-const CARTO = {
-    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+const ESRI_GRAY = {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+    overlayUrl: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; <a href="https://www.esri.com/">Esri</a>, HERE, Garmin, &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
     isIndian: false,
 };
 const MAPPLS = {
@@ -28,13 +31,13 @@ export function mapmyIndiaKey() {
 export function getMapTiles() {
     const key = mapmyIndiaKey();
     if (!key)
-        return CARTO;
+        return ESRI_GRAY;
     return { ...MAPPLS, url: MAPPLS.url.replace('{key}', key) };
 }
 /**
  * Dynamically load the Mappls advanced-maps SDK once. After it loads,
  * `L.MapmyIndia.tiles()` becomes available for fully official rendering.
- * Resolves true on success, false on failure (caller keeps CARTO fallback).
+ * Resolves true on success, false on failure (caller keeps Esri fallback).
  */
 export function loadMapmyIndiaSDK(key) {
     return new Promise((resolve) => {

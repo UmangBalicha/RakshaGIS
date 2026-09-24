@@ -151,6 +151,7 @@ function HabitationForm({ initial, saving, redZones, onSubmit }) {
         <div className="overflow-hidden rounded-xl border border-slate-200" style={{ height: '260px' }}>
           <MapContainer center={validCoords ? [lat, lng] : [26.5, 79.5]} zoom={validCoords ? 13 : 5} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
             <TileLayer attribution={tiles.attribution} url={tiles.url} />
+            {tiles.overlayUrl ? <TileLayer url={tiles.overlayUrl} /> : null}
             <HabClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={habPin} /> : null}
           </MapContainer>

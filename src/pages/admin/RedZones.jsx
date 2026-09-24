@@ -154,6 +154,7 @@ function RedZoneForm({ initial, saving, reports, onSubmit }) {
             style={{ height: '100%', width: '100%' }}
           >
             <TileLayer attribution={tiles.attribution} url={tiles.url} />
+            {tiles.overlayUrl ? <TileLayer url={tiles.overlayUrl} /> : null}
             <ZoneClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={redPin} /> : null}
           </MapContainer>
