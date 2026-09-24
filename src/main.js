@@ -4,7 +4,7 @@ import { createRoot } from 'react-dom/client';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
 import App from "./App.js";
-import { router } from './app/router.js';
+import { router } from './app/router.jsx';
 import { syncPageMeta } from './lib/pageMeta.js';
 // Per-page titles/descriptions (+ opt-in analytics) on every navigation.
 router.subscribe((state) => syncPageMeta(state.location.pathname));

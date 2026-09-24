@@ -1,6 +1,6 @@
 /* Unit tests for src/lib/routing.js — OSRM parsing + offline fallbacks. */
-import { afterEach, describe, expect, it } from 'vitest';
-import { getEvacuationRoutes } from './routing.js';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { clearRouteCache, getEvacuationRoutes } from './routing.js';
 
 const realFetch = globalThis.fetch;
 const realWindow = globalThis.window;
@@ -16,6 +16,12 @@ afterEach(() => {
   globalThis.fetch = realFetch;
   if (realWindow === undefined) delete globalThis.window;
   else globalThis.window = realWindow;
+  delete globalThis.localStorage;
+});
+
+// Road-route cache is process-wide: isolate every test.
+beforeEach(() => {
+  clearRouteCache();
 });
 
 function zone(id, lat, lng, active = true) {
@@ -131,5 +137,41 @@ describe('getEvacuationRoutes', () => {
     expect(routes[0].is_estimate).toBe(true);
     expect(routes[0].profile).toBe('walking');
     expect(routes[0].duration_seconds).toBe(600 * 3.5);
+  });
+
+  it('serves repeated identical requests from cache without refetching', async () => {
+    stubWindow();
+    const store = new Map();
+    globalThis.localStorage = {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k),
+    };
+    let fetchCount = 0;
+    globalThis.fetch = () => {
+      fetchCount += 1;
+      return Promise.resolve(osrmResponse());
+    };
+    const zones = [zone('z1', 28.61, 77.21)];
+    const first = await getEvacuationRoutes(28.6, 77.2, zones, 'driving');
+    const second = await getEvacuationRoutes(28.6, 77.2, zones, 'driving');
+    expect(fetchCount).toBe(1);
+    expect(second).toEqual(first);
+    expect(second[0].is_estimate).toBe(false);
+  });
+
+  it('retries throttled OSRM responses with backoff, then succeeds', async () => {
+    stubWindow();
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls += 1;
+      return calls === 1
+        ? Promise.resolve({ ok: false, status: 429 })
+        : Promise.resolve(osrmResponse());
+    };
+    const routes = await getEvacuationRoutes(28.62, 77.22, [zone('z1', 28.63, 77.23)], 'driving');
+    expect(calls).toBe(2);
+    expect(routes).toHaveLength(1);
+    expect(routes[0].is_estimate).toBe(false);
   });
 });

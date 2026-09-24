@@ -6,6 +6,7 @@ import {
   SAFE_ZONE_TYPE_META,
   SEVERITY_META,
   STATUS_META,
+  clearGeocodeCache,
   cn,
   dangerRadiusMeters,
   formatDateTime,
@@ -171,5 +172,23 @@ describe('reverseGeocode', () => {
     globalThis.fetch = () =>
       Promise.resolve({ ok: true, json: () => Promise.resolve({ display_name: 'A, B, C, D, E' }) });
     await expect(reverseGeocode(28.6, 77.2)).resolves.toBe('A, B, C, D');
+  });
+
+  it('caches results per ~100m cell instead of re-querying', async () => {
+    clearGeocodeCache();
+    stubWindow();
+    let calls = 0;
+    globalThis.fetch = () => {
+      calls += 1;
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ display_name: 'X, Y' }) });
+    };
+    // Same spot twice + a neighbour in the same cell: one network call.
+    await reverseGeocode(12.9716, 77.5944);
+    await reverseGeocode(12.9716, 77.5944);
+    await reverseGeocode(12.97165, 77.59445);
+    expect(calls).toBe(1);
+    // A far-away pin is a different cell: second call.
+    await reverseGeocode(13.5, 78.0);
+    expect(calls).toBe(2);
   });
 });

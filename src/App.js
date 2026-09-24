@@ -4,10 +4,11 @@ import { RouterProvider } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import { router } from './app/router';
 import { useAuthStore } from './stores/authStore';
+import ErrorBoundary from './components/ErrorBoundary';
 export default function App() {
     const init = useAuthStore((s) => s.init);
     useEffect(() => {
         void init();
     }, [init]);
-    return (_jsxs(_Fragment, { children: [_jsx(RouterProvider, { router: router }), _jsx(Toaster, { position: "top-center", richColors: true, closeButton: true })] }));
+    return (_jsxs(_Fragment, { children: [_jsx(ErrorBoundary, { children: _jsx(RouterProvider, { router: router }) }), _jsx(Toaster, { position: "top-center", richColors: true, closeButton: true })] }));
 }

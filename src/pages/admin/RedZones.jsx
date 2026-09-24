@@ -6,6 +6,9 @@ import { AlertTriangle, MapPin, Plus, Sparkles } from 'lucide-react';
 import { createRedZone, deleteRedZone, updateRedZone } from '../../lib/api';
 import { identifyRedZoneCandidates, scoreRedZone } from '../../lib/intelligence';
 import { DISASTER_TYPE_META, RED_ZONE_INTENSITY_META, RED_ZONE_STATUS_META, cn, formatDateTime } from '../../lib/utils';
+import { getMapTiles } from '../../lib/maptiles';
+
+const tiles = getMapTiles();
 import { DISASTER_TYPES, RED_ZONE_INTENSITIES, RED_ZONE_STATUSES } from '../../lib/types';
 import { useReportStore } from '../../stores/reportStore';
 import { useLiveReports } from '../../lib/hooks';
@@ -150,10 +153,7 @@ function RedZoneForm({ initial, saving, reports, onSubmit }) {
             scrollWheelZoom
             style={{ height: '100%', width: '100%' }}
           >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <TileLayer attribution={tiles.attribution} url={tiles.url} />
             <ZoneClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={redPin} /> : null}
           </MapContainer>

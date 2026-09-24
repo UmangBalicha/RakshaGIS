@@ -5,6 +5,9 @@ import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from 'react-lea
 import { toast } from 'sonner';
 import { useWideScreen } from '../../lib/hooks';
 import { Button } from '../ui';
+import { getMapTiles } from '../../lib/maptiles';
+
+const tiles = getMapTiles();
 const DEFAULT_CENTER = { lat: 22.5, lng: 79.0 }; // Central India fallback
 function ClickHandler({ onPick }) {
     useMapEvents({
@@ -76,7 +79,7 @@ export default function LocationPicker({ value, onChange, }) {
     }, []);
     const center = value ?? DEFAULT_CENTER;
     const allowScrollZoom = useWideScreen();
-    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: '280px' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: '\u00A9 <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors', url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png" }), _jsx(ClickHandler, { onPick: onChange }), value ? _jsx(Recenter, { center: value }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
+    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: '280px' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(ClickHandler, { onPick: onChange }), value ? _jsx(Recenter, { center: value }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
                                     dragend: (e) => {
                                         const m = e.target;
                                         const ll = m.getLatLng();

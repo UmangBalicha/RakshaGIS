@@ -23,6 +23,7 @@ import {
 import { HABITATION_TYPES } from '../../lib/types';
 import { useReportStore } from '../../stores/reportStore';
 import { useLiveReports } from '../../lib/hooks';
+import { getMapTiles } from '../../lib/maptiles';
 import { Badge, Button, Card, CardContent, EmptyState, Input, Label, Modal, Select, Spinner, Stat, Textarea } from '../../components/ui';
 
 const habPin = L.divIcon({
@@ -42,6 +43,8 @@ function HabClickPicker({ onPick }) {
 }
 
 const PHASE_ORDER = ['immediate', 'short_term', 'medium_term', 'monitoring'];
+
+const tiles = getMapTiles();
 
 const EMPTY_HAB = {
   name: '',
@@ -147,10 +150,7 @@ function HabitationForm({ initial, saving, redZones, onSubmit }) {
         <Label required>Location — tap the map</Label>
         <div className="overflow-hidden rounded-xl border border-slate-200" style={{ height: '260px' }}>
           <MapContainer center={validCoords ? [lat, lng] : [26.5, 79.5]} zoom={validCoords ? 13 : 5} scrollWheelZoom style={{ height: '100%', width: '100%' }}>
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            <TileLayer attribution={tiles.attribution} url={tiles.url} />
             <HabClickPicker onPick={(la, ln) => setForm((f) => ({ ...f, latitude: String(la.toFixed(6)), longitude: String(ln.toFixed(6)) }))} />
             {validCoords ? <Marker position={[lat, lng]} icon={habPin} /> : null}
           </MapContainer>

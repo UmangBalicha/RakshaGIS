@@ -116,8 +116,32 @@ export function timeAgo(iso) {
 /**
  * Reverse-geocode via OpenStreetMap Nominatim. Never throws —
  * falls back to a lat/lng string when offline or rate-limited.
+ *
+ * Results are cached per ~100m cell: Nominatim's usage policy caps anonymous
+ * use (~1 req/s), so dragging a pin around one neighbourhood must not
+ * re-query for every pixel. Shared by the report form and red-zone editor.
  */
+const geocodeCache = new Map();
+function geocodeKey(lat, lng) {
+    return `${lat.toFixed(3)},${lng.toFixed(3)}`;
+}
+/** Test hook: clear the in-memory geocode cache. */
+export function clearGeocodeCache() {
+    geocodeCache.clear();
+}
+function rememberGeocode(key, value) {
+    if (geocodeCache.size >= 200) {
+        const oldest = geocodeCache.keys().next().value;
+        geocodeCache.delete(oldest);
+    }
+    geocodeCache.set(key, value);
+}
 export async function reverseGeocode(lat, lng) {
+    const key = geocodeKey(lat, lng);
+    const hit = geocodeCache.get(key);
+    if (hit !== undefined)
+        return hit;
+    const fallback = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
     try {
         const ctrl = new AbortController();
         const timer = window.setTimeout(() => ctrl.abort(), 6000);
@@ -128,12 +152,16 @@ export async function reverseGeocode(lat, lng) {
         const data = (await res.json());
         if (data.display_name) {
             const parts = data.display_name.split(',').slice(0, 4).join(',').trim();
-            return parts || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+            const result = parts || fallback;
+            rememberGeocode(key, result);
+            return result;
         }
         throw new Error('no address');
     }
     catch {
-        return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+        // Cache the fallback too: hammering a dead network helps nobody.
+        rememberGeocode(key, fallback);
+        return fallback;
     }
 }
 /** Suggest an initial severity from report fields (authority can override). */
