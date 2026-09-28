@@ -74,7 +74,19 @@ export default function PhoneLogin() {
   };
 
   return (
-    <div className="mx-auto max-w-md">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+      <div className="hidden overflow-hidden rounded-2xl bg-slate-900 p-6 text-white lg:block">
+        <p className="text-xl font-extrabold tracking-tight">RakshaGIS</p>
+        <p className="mt-2 text-sm text-slate-300">
+          Report disasters, track response and evacuate to safety — all hazards, one live map.
+        </p>
+        <ul className="mt-4 space-y-2 text-sm text-slate-200">
+          <li>✓ Live incident map with severity tracking</li>
+          <li>✓ Road routing to the nearest safe zone</li>
+          <li>✓ Red-zone intelligence for authorities</li>
+        </ul>
+        <p className="mt-4 rounded-lg bg-white/10 p-3 text-sm font-bold">Emergency? Call 112 first.</p>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>Sign in with phone OTP</CardTitle>

@@ -52,12 +52,12 @@ export default function ReportSuccess() {
   }, [id]);
 
   return (
-    <div className="mx-auto max-w-md py-6 text-center sm:py-10">
+    <div className="w-full py-6 text-center sm:py-10">
       <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
         <CheckCircle2 className="h-9 w-9" />
       </span>
       <h1 className="mt-4 text-2xl font-extrabold text-slate-900">Report received</h1>
-      <p className="mx-auto mt-2 max-w-sm text-sm text-slate-500">
+      <p className="mt-2 text-sm text-slate-500">
         Thank you — your incident report was sent to the response team
         {address ? (
           <>

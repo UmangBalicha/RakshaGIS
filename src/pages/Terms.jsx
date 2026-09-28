@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/ui';
 
 function Section({ title, children }) {
   return (
-    <section className="mt-6 first:mt-0">
+    <section>
       <h2 className="text-base font-extrabold text-slate-900">{title}</h2>
       <div className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600">{children}</div>
     </section>
@@ -13,7 +13,7 @@ function Section({ title, children }) {
 
 export default function Terms() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <h1 className="text-2xl font-extrabold text-slate-900">Terms & Conditions</h1>
       <p className="mt-1 text-sm text-slate-500">
         The ground rules for using the RakshaGIS disaster reporting platform.
@@ -21,6 +21,7 @@ export default function Terms() {
 
       <Card className="mt-4">
         <CardContent>
+          <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
           <Section title="What this service is">
             <p>
               RakshaGIS is a public incident-reporting and evacuation-guidance tool.
@@ -84,6 +85,7 @@ export default function Terms() {
               </p>
             </Section>
           ) : null}
+          </div>
         </CardContent>
       </Card>
 

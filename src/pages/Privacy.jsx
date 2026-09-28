@@ -4,7 +4,7 @@ import { Card, CardContent } from '../components/ui';
 
 function Section({ title, children }) {
   return (
-    <section className="mt-6">
+    <section>
       <h2 className="text-base font-extrabold text-slate-900">{title}</h2>
       <div className="mt-2 space-y-2 text-sm leading-relaxed text-slate-600">{children}</div>
     </section>
@@ -13,7 +13,7 @@ function Section({ title, children }) {
 
 export default function Privacy() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <h1 className="text-2xl font-extrabold text-slate-900">Privacy Policy</h1>
       <p className="mt-1 text-sm text-slate-500">
         Last updated for the current release of RakshaGIS. This policy describes only
@@ -22,6 +22,7 @@ export default function Privacy() {
 
       <Card className="mt-4">
         <CardContent>
+          <div className="grid gap-x-8 gap-y-6 md:grid-cols-2 xl:grid-cols-3">
           <Section title="Reports you file">
             <p>
               When you submit an incident report we store the location pin, disaster
@@ -94,6 +95,7 @@ export default function Privacy() {
               </p>
             </Section>
           ) : null}
+          </div>
         </CardContent>
       </Card>
 
