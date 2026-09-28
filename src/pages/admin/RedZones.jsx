@@ -156,6 +156,7 @@ function RedZoneForm({ initial, saving, reports, onSubmit }) {
           <MapContainer
             center={validCoords ? [lat, lng] : [26.5, 79.5]}
             zoom={validCoords ? 12 : 5}
+            minZoom={4}
             scrollWheelZoom={allowZoom}
             style={{ height: '100%', width: '100%' }}
           >

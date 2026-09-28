@@ -84,7 +84,7 @@ export default function LocationPicker({ value, onChange, }) {
     }, []);
     const center = value ?? DEFAULT_CENTER;
     const allowScrollZoom = useWideScreen();
-    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: 'clamp(260px, 42vh, 560px)' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(ClickHandler, { onPick: (ll) => { setGpsZoom(null); onChange(ll); } }), value ? _jsx(Recenter, { center: value, minZoom: gpsZoom }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
+    return (_jsxs("div", { children: [_jsxs("div", { className: "relative overflow-hidden rounded-xl border border-slate-200", style: { height: 'clamp(260px, 42vh, 560px)' }, children: [_jsxs(MapContainer, { center: [center.lat, center.lng], zoom: value ? 14 : 11, minZoom: 4, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(ClickHandler, { onPick: (ll) => { setGpsZoom(null); onChange(ll); } }), value ? _jsx(Recenter, { center: value, minZoom: gpsZoom }) : null, value ? (_jsx(Marker, { position: [value.lat, value.lng], icon: pinIcon, draggable: true, eventHandlers: {
                                     dragend: (e) => {
                                         const m = e.target;
                                         const ll = m.getLatLng();

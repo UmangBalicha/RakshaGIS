@@ -78,9 +78,31 @@ function FitAll({ reports, fitKey }) {
         const key = fitKey ?? 'auto';
         if (fitted.current === key)
             return;
-        fitted.current = key;
-        const bounds = L.latLngBounds(reports.map((r) => [r.latitude, r.longitude]));
-        map.fitBounds(bounds.pad(0.2));
+        const doFit = () => {
+            // Never fit against a container Leaflet hasn't measured yet: a
+            // 0-size container collapses the fit math to the world's min zoom
+            // (grey bands + repeating world tiles). Bail and retry next frame.
+            const size = map.getSize();
+            if (!size || size.x <= 0 || size.y <= 0)
+                return false;
+            const bounds = L.latLngBounds(reports.map((r) => [r.latitude, r.longitude]));
+            if (!bounds.isValid())
+                return true;
+            fitted.current = key;
+            map.fitBounds(bounds.pad(0.2));
+            // Belt-and-braces: a world-zoomed map is never useful here.
+            const z = map.getZoom();
+            if (!Number.isFinite(z) || z < 3)
+                map.setView(bounds.getCenter(), 5);
+            return true;
+        };
+        if (doFit())
+            return;
+        const raf = window.requestAnimationFrame(() => {
+            if (fitted.current !== key)
+                doFit();
+        });
+        return () => window.cancelAnimationFrame(raf);
     }, [map, reports, fitKey]);
     return null;
 }
@@ -91,7 +113,8 @@ function FlyTo({ focus, markers }) {
         if (!focus || focus.nonce === last.current)
             return;
         last.current = focus.nonce;
-        map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 13), { duration: 0.8 });
+        const z = map.getZoom();
+        map.flyTo([focus.lat, focus.lng], Number.isFinite(z) ? Math.max(z, 13) : 13, { duration: 0.8 });
         if (focus.id) {
             window.setTimeout(() => markers.get(focus.id ?? '')?.openPopup(), 850);
         }
@@ -117,7 +140,8 @@ function UserCenter({ enabled }) {
                 return;
             const ll = [p.coords.latitude, p.coords.longitude];
             setPos(ll);
-            map.flyTo(ll, Math.max(map.getZoom(), 11), { duration: 1 });
+            const z = map.getZoom();
+            map.flyTo(ll, Number.isFinite(z) ? Math.max(z, 11) : 11, { duration: 1 });
         }, () => undefined, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
         return () => {
             cancelled = true;
@@ -219,7 +243,7 @@ export default function IncidentMap({ reports, zones = [], redZones, showDangerZ
     // the map; map still pans with one finger and zooms with pinch.
     // Live flag (not a one-shot read) so folding/unfolding updates behaviour.
     const allowScrollZoom = useWideScreen();
-    return (_jsxs(_Fragment, { children: [_jsx("div", { className: cn('overflow-hidden rounded-xl border border-slate-200', className), style: className ? undefined : { height }, children: _jsxs(MapContainer, { center: center, zoom: reports.length === 1 ? 12 : 5, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(FitAll, { reports: reports, fitKey: centerOnUser ? undefined : fitKey }), _jsx(FlyTo, { focus: focus, markers: markers }), _jsx(UserCenter, { enabled: centerOnUser }), userDot ? _jsx(UserDot, {}) : null, showDangerZones
+    return (_jsxs(_Fragment, { children: [_jsx("div", { className: cn('overflow-hidden rounded-xl border border-slate-200', className), style: className ? undefined : { height }, children: _jsxs(MapContainer, { center: center, zoom: reports.length === 1 ? 12 : 5, minZoom: 4, wheelPxPerZoomLevel: 120, scrollWheelZoom: allowScrollZoom, style: { height: '100%', width: '100%' }, children: [_jsx(InvalidateOnResize, {}), _jsx(TileLayer, { attribution: tiles.attribution, url: tiles.url }), _jsx(FitAll, { reports: reports, fitKey: centerOnUser ? undefined : fitKey }), _jsx(FlyTo, { focus: focus, markers: markers }), _jsx(UserCenter, { enabled: centerOnUser }), userDot ? _jsx(UserDot, {}) : null, showDangerZones
                     ? reports.map((r) => (_jsx(Circle, { center: [r.latitude, r.longitude], radius: dangerRadiusMeters(r.severity), pathOptions: {
                             color: SEVERITY_COLOR[r.severity],
                             weight: 1.5,
